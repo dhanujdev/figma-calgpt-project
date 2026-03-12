@@ -22,9 +22,7 @@ function requestContext(c: { req: { header: (key: string) => string | undefined 
   return { authHeader };
 }
 
-app.get("/make-server-ae24ed01/health", (c) => c.json({ status: "ok" }));
-
-app.post("/make-server-ae24ed01/mcp", async (c) => {
+async function handleMcp(c: any) {
   try {
     const body = await c.req.json();
     const { method, params } = body;
@@ -73,47 +71,55 @@ app.post("/make-server-ae24ed01/mcp", async (c) => {
   } catch (error) {
     return c.json({ success: false, error: String(error) }, 500);
   }
-});
+}
 
-app.get("/make-server-ae24ed01/state", async (c) => {
-  const result = await mcpHandler.syncState({}, requestContext(c));
-  return c.json(result);
-});
+const routePrefixes = ["", "/make-server-ae24ed01"];
 
-app.post("/make-server-ae24ed01/log-meal", async (c) => {
-  const params = await c.req.json();
-  const result = await mcpHandler.logMeal(params, requestContext(c));
-  return c.json(result, result.success ? 200 : 400);
-});
+for (const prefix of routePrefixes) {
+  app.get(`${prefix}/health`, (c) => c.json({ status: "ok" }));
 
-app.delete("/make-server-ae24ed01/meal/:id", async (c) => {
-  const meal_id = c.req.param("id");
-  const result = await mcpHandler.deleteMeal({ meal_id }, requestContext(c));
-  return c.json(result, result.success ? 200 : 404);
-});
+  app.post(`${prefix}/mcp`, async (c) => handleMcp(c));
 
-app.post("/make-server-ae24ed01/goals", async (c) => {
-  const params = await c.req.json();
-  const result = await mcpHandler.updateGoals(params, requestContext(c));
-  return c.json(result, result.success ? 200 : 400);
-});
+  app.get(`${prefix}/state`, async (c) => {
+    const result = await mcpHandler.syncState({}, requestContext(c));
+    return c.json(result);
+  });
 
-app.post("/make-server-ae24ed01/weight", async (c) => {
-  const params = await c.req.json();
-  const result = await mcpHandler.logWeight(params, requestContext(c));
-  return c.json(result, result.success ? 200 : 400);
-});
+  app.post(`${prefix}/log-meal`, async (c) => {
+    const params = await c.req.json();
+    const result = await mcpHandler.logMeal(params, requestContext(c));
+    return c.json(result, result.success ? 200 : 400);
+  });
 
-app.get("/make-server-ae24ed01/progress", async (c) => {
-  const range = c.req.query("range") ?? "90D";
-  const result = await mcpHandler.getProgress({ range }, requestContext(c));
-  return c.json(result, result.success ? 200 : 400);
-});
+  app.delete(`${prefix}/meal/:id`, async (c) => {
+    const meal_id = c.req.param("id");
+    const result = await mcpHandler.deleteMeal({ meal_id }, requestContext(c));
+    return c.json(result, result.success ? 200 : 404);
+  });
 
-app.post("/make-server-ae24ed01/preferences", async (c) => {
-  const params = await c.req.json();
-  const result = await mcpHandler.updatePreferences(params, requestContext(c));
-  return c.json(result, result.success ? 200 : 400);
-});
+  app.post(`${prefix}/goals`, async (c) => {
+    const params = await c.req.json();
+    const result = await mcpHandler.updateGoals(params, requestContext(c));
+    return c.json(result, result.success ? 200 : 400);
+  });
+
+  app.post(`${prefix}/weight`, async (c) => {
+    const params = await c.req.json();
+    const result = await mcpHandler.logWeight(params, requestContext(c));
+    return c.json(result, result.success ? 200 : 400);
+  });
+
+  app.get(`${prefix}/progress`, async (c) => {
+    const range = c.req.query("range") ?? "90D";
+    const result = await mcpHandler.getProgress({ range }, requestContext(c));
+    return c.json(result, result.success ? 200 : 400);
+  });
+
+  app.post(`${prefix}/preferences`, async (c) => {
+    const params = await c.req.json();
+    const result = await mcpHandler.updatePreferences(params, requestContext(c));
+    return c.json(result, result.success ? 200 : 400);
+  });
+}
 
 Deno.serve(app.fetch);
