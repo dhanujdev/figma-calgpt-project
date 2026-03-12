@@ -1,78 +1,48 @@
-# Release Lock: v2.0.0 (V2/V3 Contract)
+# Release Lock (Production Baseline)
 
-This document defines the locked reproducible baseline for V2/V3 rollout.
+This file defines the minimum state required before shipping CalGPT.
 
-## Release Identity
+## Locked Runtime Targets
 
-- Version: `2.0.0`
-- Branch baseline: `main`
-- Canonical MCP URL: `https://figma-calgpt-project.vercel.app/mcp`
-- Canonical widget URI: `ui://widget/gpt-calories-v4.html`
-- SQL migration: `supabase/migrations/20260312_v2_v3_schema.sql`
+- Public MCP URL: `https://figma-calgpt-project.vercel.app/mcp`
+- Diagnostic MCP URL: `https://figma-calgpt-project.vercel.app/api/mcp`
+- Widget URI: `ui://widget/gpt-calories-v4.html`
+- Supabase function endpoint: `https://yaaslbgenkrimghcpeay.supabase.co/functions/v1/server/mcp`
 
-## Runtime Inputs (Required)
+## Locked Env Requirements
 
-Set in Vercel project + Supabase function runtime:
+### Vercel
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
+- `SUPABASE_MCP_ENDPOINT`
+
+### Supabase function secrets
+
+- `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `ALLOW_DEMO_MODE=false`
 
-Optional:
+## Locked Pre-Release Checks
 
-- `ALLOW_DEMO_MODE=true|false`
-- `OAUTH_AUTHORIZATION_SERVER`
-- `OAUTH_AUTHORIZATION_ENDPOINT`
-- `OAUTH_TOKEN_ENDPOINT`
-- `OAUTH_REGISTRATION_ENDPOINT`
+1. `npm ci`
+2. `npm run test:strict`
+3. Live smoke:
+   - `MCP_BASE_URL=https://figma-calgpt-project.vercel.app/mcp npm run smoke:mcp`
+4. Manual ChatGPT open + tool-call sanity
 
-## Reproducibility Rules
+## Locked No-Go Conditions
 
-1. Use `npm ci` for deterministic install.
-2. Keep `package-lock.json` in sync with `package.json`.
-3. Run SQL migration before production traffic switch.
-4. Do not reuse old widget URI for breaking widget changes.
+Do not release if any of these occur:
 
-## Strict Gate (Block Deploy On Failure)
+- `tools/list` passes but `tools/call` returns `404 Not Found [endpoint=...]`
+- Supabase MCP endpoint returns non-200 for `sync_state`
+- Migration history mismatch unresolved
+- Widget URI mismatch between `tools/list` and `resources/list`
 
-```bash
-npm run test:strict
-```
+## Incident Escalation Defaults
 
-Gate includes:
-
-- MCP contract checks
-- Widget bridge checks
-- SQL migration checks
-- UI shell checks
-- Build
-- Optional live smoke (`MCP_BASE_URL`)
-
-## MCP Smoke Contract
-
-```bash
-curl https://figma-calgpt-project.vercel.app/mcp
-
-curl -X POST https://figma-calgpt-project.vercel.app/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
-
-curl -X POST https://figma-calgpt-project.vercel.app/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"resources/list"}'
-
-curl -X POST https://figma-calgpt-project.vercel.app/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":"ui://widget/gpt-calories-v4.html"}}'
-
-curl -X POST https://figma-calgpt-project.vercel.app/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"sync_state","arguments":{}}}'
-```
-
-## Rollback Steps
-
-1. Re-point tool metadata to prior widget URI if needed.
-2. Keep SQL tables intact; rollback app/api code first.
-3. Enable `ALLOW_DEMO_MODE=true` during incident if auth enforcement causes blocking.
-4. Re-run MCP smoke contract after rollback.
+1. Confirm endpoint wiring (`SUPABASE_MCP_ENDPOINT`) first.
+2. Confirm function route response second.
+3. Confirm migration history alignment third.
+4. Reconnect ChatGPT app only after backend is verified healthy.

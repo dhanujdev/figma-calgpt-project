@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.1] - 2026-03-12
+
+### Added
+- `INCIDENT_PREVENTION.md` with concrete outage classes, root causes, and prevention checklists.
+
+### Changed
+- Rewrote core operational docs (`README`, `ARCHITECTURE`, `DEPLOYMENT`, `MCP_CONTRACT`, `TESTING_GUIDE`, `RELEASE_LOCK`) to align with current production architecture and endpoint wiring.
+- Clarified required env keys by runtime boundary (Vercel vs Supabase function secrets).
+- Added explicit verification commands for Supabase endpoint health and MCP tool-call health.
+
 ## [2.0.0] - 2026-03-12
 
 ### Added

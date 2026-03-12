@@ -1,68 +1,65 @@
-# MCP Contract (V2/V3)
+# MCP Contract
 
-## Core Protocol
+## Protocol Surface
 
-- Endpoint: `/mcp` (rewritten to `/api/mcp`)
-- Supports: `initialize`, `ping`, `tools/list`, `resources/list`, `resources/read`, `tools/call`
-- Widget URI: `ui://widget/gpt-calories-v4.html`
-- Widget MIME: `text/html;profile=mcp-app`
+Endpoint: `/mcp` (rewritten to `/api/mcp`)
 
-## Tools
+Supported JSON-RPC methods:
 
-### V1 Compatibility
+- `initialize`
+- `ping`
+- `tools/list`
+- `resources/list`
+- `resources/read`
+- `tools/call`
 
-1. `log_meal`
-2. `sync_state`
-3. `delete_meal`
-4. `update_goals`
+## Resource Contract
 
-### V2 Functional Pages
+- URI: `ui://widget/gpt-calories-v4.html`
+- MIME: `text/html;profile=mcp-app`
+- Source: `public/component.html`
 
-1. `log_weight`
-2. `get_progress`
-3. `update_preferences`
-4. `upload_progress_photo`
+## Tool Contract
 
-### V3 Orchestration
+### V1 tools
 
-1. `run_daily_checkin`
-2. `run_weekly_review`
-3. `suggest_goal_adjustments`
+- `log_meal`
+- `sync_state`
+- `delete_meal`
+- `update_goals`
 
-## Structured Content Shape
+### V2 tools
 
-`sync_state` returns:
+- `log_weight`
+- `get_progress`
+- `update_preferences`
+- `upload_progress_photo`
 
-```json
-{
-  "success": true,
-  "state": {
-    "date": "YYYY-MM-DD",
-    "meals": [],
-    "totalCalories": 0,
-    "totalProtein": 0,
-    "totalCarbs": 0,
-    "totalFats": 0,
-    "goals": {},
-    "preferences": {}
-  },
-  "progress": {},
-  "mode": "authenticated|demo",
-  "page": "home|progress|settings"
-}
-```
+### V3 tools
+
+- `run_daily_checkin`
+- `run_weekly_review`
+- `suggest_goal_adjustments`
+
+## Required Behavior
+
+- `sync_state` must remain no-argument compatible.
+- `tools/list` and `tools/call` must stay aligned (no phantom tools).
+- `resources/list` must include `ui://widget/gpt-calories-v4.html`.
+- `resources/read` must return widget HTML with MCP app MIME.
 
 ## Auth Signaling
 
-- Tool descriptors publish mixed auth via `securitySchemes`.
-- Auth challenge path returns `_meta["mcp/www_authenticate"]` on tool error.
-- Protected-resource metadata served from:
+- Tool descriptors expose `securitySchemes`.
+- Protected flow errors return `_meta["mcp/www_authenticate"]`.
+- Metadata endpoints:
   - `/.well-known/oauth-protected-resource`
   - `/.well-known/oauth-authorization-server`
 
-## Stability Rules
+## Known Integration Pitfalls (Now Guarded)
 
-1. Preserve V1 tool names and basic behavior.
-2. Keep `sync_state` no-arg compatible.
-3. Version widget URI on breaking widget changes.
-4. Keep large UI-only payloads in `_meta` when needed.
+1. MCP endpoint responds but Supabase endpoint path is wrong.
+2. `tools/list` succeeds while `tools/call` fails due backend route mismatch.
+3. Local/remote migration drift introduces runtime query errors.
+
+See [`INCIDENT_PREVENTION.md`](./INCIDENT_PREVENTION.md) for mitigation playbooks.
