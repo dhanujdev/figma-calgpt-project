@@ -283,6 +283,23 @@
       });
     }
 
+    function formatDisplayDate(dateValue) {
+      if (typeof dateValue !== 'string') return '';
+      const match = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        const year = Number(match[1]);
+        const month = Number(match[2]) - 1;
+        const day = Number(match[3]);
+        return new Date(year, month, day).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) return dateValue;
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
     // Render the Health Ring
     function render(state) {
       if (!state) {
@@ -334,7 +351,7 @@
         <div class="health-ring-card">
           <div class="header">
             <h2>Today's Progress</h2>
-            <span class="date-badge">${new Date(state.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+            <span class="date-badge">${formatDisplayDate(state.date)}</span>
           </div>
 
           <div class="ring-container">
