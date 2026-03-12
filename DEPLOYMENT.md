@@ -21,10 +21,9 @@
 
 3. **Set Environment Variables in Vercel:**
    - In your Vercel project settings, go to "Environment Variables"
-   - Add these variables (already provided by Figma Make):
+   - Add these variables:
      - `SUPABASE_URL`
      - `SUPABASE_ANON_KEY`
-     - `SUPABASE_SERVICE_ROLE_KEY`
 
 4. **Deploy:**
    - Click "Deploy"
@@ -119,10 +118,12 @@ Health Ring updates in real-time! 🎉
 
 ## Environment Variables
 
-These are automatically configured in Figma Make:
+Required in Vercel:
 
 - `SUPABASE_URL` - Your Supabase project URL
 - `SUPABASE_ANON_KEY` - Public anonymous key
+
+Only required in Supabase Edge Function runtime (not Vercel):
 - `SUPABASE_SERVICE_ROLE_KEY` - Server-side admin key
 
 ## Testing
