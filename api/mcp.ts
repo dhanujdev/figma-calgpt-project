@@ -407,7 +407,17 @@ async function callSupabaseTool(
     throw new Error("SUPABASE_URL or SUPABASE_ANON_KEY is not configured");
   }
 
-  const endpoint = `${supabaseUrl}/functions/v1/make-server-ae24ed01/mcp`;
+  const configuredEndpoint = process.env.SUPABASE_MCP_ENDPOINT?.trim();
+  const configuredFunction = process.env.SUPABASE_FUNCTION_NAME?.trim() || "make-server-ae24ed01";
+  const endpointCandidates = configuredEndpoint
+    ? [configuredEndpoint]
+    : [
+        `${supabaseUrl}/functions/v1/${configuredFunction}/mcp`,
+        `${supabaseUrl}/functions/v1/${configuredFunction}/make-server-ae24ed01/mcp`,
+        `${supabaseUrl}/functions/v1/server/mcp`,
+        `${supabaseUrl}/functions/v1/server/make-server-ae24ed01/mcp`,
+      ];
+  const endpoints = Array.from(new Set(endpointCandidates));
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${supabaseAnonKey}`,
@@ -418,37 +428,53 @@ async function callSupabaseTool(
     headers["X-User-Authorization"] = incomingAuthHeader;
   }
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      method: name,
-      params: args,
-    }),
-  });
+  let lastError = "Supabase function call failed";
 
-  const text = await response.text();
-  let payload: unknown = null;
-  try {
-    payload = text ? JSON.parse(text) : null;
-  } catch {
-    payload = { success: false, error: text };
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          method: name,
+          params: args,
+        }),
+      });
+
+      const text = await response.text();
+      let payload: unknown = null;
+      try {
+        payload = text ? JSON.parse(text) : null;
+      } catch {
+        payload = { success: false, error: text };
+      }
+
+      if (response.ok) {
+        return payload as {
+          success?: boolean;
+          message?: string;
+          error?: string;
+          authRequired?: boolean;
+          [key: string]: unknown;
+        };
+      }
+
+      const reason =
+        (payload as { error?: string })?.error ??
+        `Supabase function failed (${response.status})`;
+      lastError = `${reason} [endpoint=${endpoint}]`;
+
+      const retryable =
+        response.status === 404 || /Unknown method:/i.test(String(reason));
+      if (!retryable) {
+        throw new Error(lastError);
+      }
+    } catch (error) {
+      lastError = `${String(error)} [endpoint=${endpoint}]`;
+    }
   }
 
-  if (!response.ok) {
-    const reason =
-      (payload as { error?: string })?.error ??
-      `Supabase function failed (${response.status})`;
-    throw new Error(reason);
-  }
-
-  return payload as {
-    success?: boolean;
-    message?: string;
-    error?: string;
-    authRequired?: boolean;
-    [key: string]: unknown;
-  };
+  throw new Error(lastError);
 }
 
 function authChallengeMeta(context: RpcContext) {
