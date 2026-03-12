@@ -40,7 +40,7 @@ After deployment, update `/public/manifest.json`:
   "icon": "https://your-app.vercel.app/icon.svg",
   "api": {
     "type": "mcp",
-    "url": "https://your-vercel-project.supabase.co/functions/v1/make-server-ae24ed01/mcp"
+    "url": "https://your-app.vercel.app/mcp"
   },
   "ui_component": {
     "url": "https://your-app.vercel.app/component.html",
@@ -78,7 +78,9 @@ ChatGPT (GPT-4) → Understands intent
     ↓
 Calls MCP Tool: log_meal
     ↓
-Your Supabase Edge Function
+Vercel /mcp endpoint
+    ↓
+Supabase Edge Function
     ↓
 Stores in KV Store
     ↓
@@ -99,8 +101,12 @@ Health Ring updates in real-time! 🎉
   ├── component.html       # Web component (Health Ring UI)
   └── icon.svg            # App icon
 
+/api
+  ├── mcp.ts              # MCP endpoint proxy for ChatGPT
+  └── state.ts            # State endpoint for component fallback
+
 /supabase/functions/server
-  ├── index.tsx           # Hono server with MCP endpoint
+  ├── index.tsx           # Hono server (internal backend)
   ├── mcp_handler.tsx     # MCP tool implementations
   └── kv_store.tsx        # Supabase KV storage wrapper
 
@@ -132,13 +138,18 @@ Open `/public/component.html` in your browser to test the ChatGPT UI component.
 
 ### Test MCP Endpoints
 ```bash
-# Get current state
-curl https://YOUR_PROJECT.supabase.co/functions/v1/make-server-ae24ed01/state
-
-# Log a meal
-curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/make-server-ae24ed01/mcp \
+# Verify MCP initialize
+curl -X POST https://YOUR_APP.vercel.app/mcp \
   -H "Content-Type: application/json" \
-  -d '{"method":"log_meal","params":{"name":"Burger","calories":700,"protein":35,"carbs":50,"fats":30}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+
+# List tools
+curl -X POST https://YOUR_APP.vercel.app/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+
+# Get state via proxy
+curl https://YOUR_APP.vercel.app/api/state
 ```
 
 ## Troubleshooting
@@ -149,7 +160,7 @@ curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/make-server-ae24ed01/
 - Check browser console for errors
 
 ### MCP tools not being called
-- Verify the manifest.json `api.url` points to your Supabase function
+- Verify the manifest.json `api.url` points to your Vercel `/mcp` endpoint
 - Check Supabase function logs for errors
 - Ensure environment variables are set
 

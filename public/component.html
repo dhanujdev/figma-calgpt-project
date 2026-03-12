@@ -450,6 +450,21 @@
       `;
     }
 
+    function extractState(result) {
+      if (!result || typeof result !== 'object') return null;
+      if (result.success && result.state) return result.state;
+      if (result.success && result.data) return result.data;
+      return null;
+    }
+
+    function renderFallbackMessage(message) {
+      document.getElementById('app').innerHTML = `
+        <div class="meals-card">
+          <div class="empty-state">${message}</div>
+        </div>
+      `;
+    }
+
     // Listen for state updates from ChatGPT via window.openai API
     if (window.openai) {
       // ChatGPT Apps SDK integration
@@ -468,13 +483,17 @@
       fetch('/api/state')
         .then(res => res.json())
         .then(result => {
-          if (result.success) {
-            currentState = result.data;
+          const state = extractState(result);
+          if (state) {
+            currentState = state;
             render(currentState);
+            return;
           }
+          renderFallbackMessage('Unable to load state from API. Try opening this component inside ChatGPT.');
         })
         .catch(err => {
           console.error('Error fetching state:', err);
+          renderFallbackMessage('Unable to reach /api/state. Deploy API routes or open this component inside ChatGPT.');
         });
     }
 

@@ -29,10 +29,10 @@ This follows the official **ChatGPT Apps SDK** architecture:
 
 ### Key Components
 
-1. **MCP Server** (`/supabase/functions/server/`)
-   - Provides tools that ChatGPT can call: `log_meal`, `sync_state`, `delete_meal`, `update_goals`
-   - Returns pure JSON - no UI logic here (Atomic Component pattern)
-   - Hosted on Supabase Edge Functions
+1. **MCP Endpoint** (`/api/mcp.ts`)
+   - Public MCP endpoint for ChatGPT Apps: `https://YOUR-APP.vercel.app/mcp`
+   - Proxies tool calls to Supabase Edge Functions with server-side auth headers
+   - Exposes tools: `log_meal`, `sync_state`, `delete_meal`, `update_goals`
 
 2. **Web Component** (`/public/component.html`)
    - Standalone HTML/JS component that renders the Health Ring
@@ -66,7 +66,7 @@ Edit `/public/manifest.json` and replace the URLs:
 {
   "api": {
     "type": "mcp",
-    "url": "https://YOUR-PROJECT.supabase.co/functions/v1/make-server-ae24ed01/mcp"
+    "url": "https://YOUR-APP.vercel.app/mcp"
   },
   "ui_component": {
     "url": "https://YOUR-APP.vercel.app/component.html",
@@ -79,7 +79,7 @@ Edit `/public/manifest.json` and replace the URLs:
 
 1. Go to **ChatGPT** → **Settings** → **Apps**
 2. Click **Create App** (or **Developer Mode**)
-3. Enter your manifest URL: `https://YOUR-APP.vercel.app/manifest.json`
+3. Enter your manifest URL: `https://YOUR-VERCEL-URL.vercel.app/manifest.json`
 4. Test it out!
 
 ## 💬 How to Use in ChatGPT
@@ -162,7 +162,7 @@ Visit `http://localhost:5173` to see the standalone React demo.
 
 ### Testing the Web Component
 
-Open `/public/component.html` directly in a browser. It will fetch state from the Supabase backend.
+Open `/public/component.html` directly in a browser. It will fetch state from `/api/state` on the deployed app.
 
 ## 🔒 Security Notes
 

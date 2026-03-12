@@ -57,12 +57,14 @@ You'll get a URL like: `https://gpt-calories.vercel.app`
 
 ### 3️⃣ Configure Environment Variables
 
-Your Supabase backend is already running in this Make environment. The URLs are:
+Your Supabase backend is already running in this Make environment, but ChatGPT should call your Vercel proxy URLs:
 
-- **MCP Endpoint**: `https://[PROJECT-ID].supabase.co/functions/v1/make-server-ae24ed01/mcp`
-- **REST API**: `https://[PROJECT-ID].supabase.co/functions/v1/make-server-ae24ed01/state`
+- **MCP Endpoint**: `https://YOUR-VERCEL-URL.vercel.app/mcp`
+- **REST API**: `https://YOUR-VERCEL-URL.vercel.app/api/state`
 
-Get your project ID from `/utils/supabase/info.tsx`.
+Set these in Vercel Environment Variables:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
 
 ### 4️⃣ Update manifest.json
 
@@ -76,7 +78,7 @@ Edit `/public/manifest.json` with your actual URLs:
   "icon": "https://YOUR-VERCEL-URL.vercel.app/icon.png",
   "api": {
     "type": "mcp",
-    "url": "https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/mcp"
+    "url": "https://YOUR-VERCEL-URL.vercel.app/mcp"
   },
   "ui_component": {
     "url": "https://YOUR-VERCEL-URL.vercel.app/component.html",
@@ -182,7 +184,7 @@ In `manifest.json`, change `display_mode`:
 
 ### "Tools not working"
 
-- Verify MCP endpoint is responding: `curl https://YOUR-MCP-URL/mcp`
+- Verify MCP endpoint is responding: `curl https://YOUR-VERCEL-URL.vercel.app/mcp`
 - Check Supabase function logs
 - Ensure ChatGPT can reach your endpoint (no VPN/firewall blocking)
 

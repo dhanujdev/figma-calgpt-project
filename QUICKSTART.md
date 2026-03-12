@@ -46,17 +46,10 @@ git push -u origin main
 
 You'll get a URL like: `https://gpt-calories-xyz.vercel.app`
 
-### Step 3: Get Your Supabase URL
+### Step 3: Configure MCP URL
 
-Your backend is already running! Find your Supabase project ID:
-
-1. Look in `/utils/supabase/info.tsx` in this project
-2. Or check your Figma Make project settings
-
-Your MCP endpoint is:
-```
-https://[PROJECT-ID].supabase.co/functions/v1/make-server-ae24ed01/mcp
-```
+Use your deployed Vercel URL as the MCP endpoint:
+`https://YOUR-VERCEL-URL.vercel.app/mcp`
 
 ### Step 4: Update manifest.json
 
@@ -66,7 +59,7 @@ Edit `/public/manifest.json`:
 {
   "api": {
     "type": "mcp",
-    "url": "https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/mcp"
+    "url": "https://YOUR-VERCEL-URL.vercel.app/mcp"
   },
   "ui_component": {
     "url": "https://YOUR-VERCEL-URL.vercel.app/component.html",
@@ -100,12 +93,14 @@ You should see:
 ### Test the Backend
 
 ```bash
-curl https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/health
+curl -X POST https://YOUR-VERCEL-URL.vercel.app/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 ```
 
 Should return:
 ```json
-{"status":"ok"}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18", ...}}
 ```
 
 ### Test the Demo App
@@ -280,8 +275,8 @@ Before going live, verify these URLs work:
 - [ ] `https://YOUR-VERCEL-URL.vercel.app/` (Demo app)
 - [ ] `https://YOUR-VERCEL-URL.vercel.app/manifest.json` (Returns JSON)
 - [ ] `https://YOUR-VERCEL-URL.vercel.app/component.html` (Shows ring)
-- [ ] `https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/health` (Returns ok)
-- [ ] `https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/state` (Returns state)
+- [ ] `https://YOUR-VERCEL-URL.vercel.app/mcp` (Returns endpoint health JSON on GET)
+- [ ] `https://YOUR-VERCEL-URL.vercel.app/api/state` (Returns current state JSON)
 
 ---
 
