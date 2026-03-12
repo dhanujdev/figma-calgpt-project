@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPT-Calories Health Ring</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 50%, #eff6ff 100%);
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .health-ring-card {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      margin-bottom: 24px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .header h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .date-badge {
+      font-size: 12px;
+      color: #6b7280;
+      background: #f3f4f6;
+      padding: 4px 12px;
+      border-radius: 12px;
+    }
+
+    .ring-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      padding: 24px 0;
+    }
+
+    .main-ring {
+      position: relative;
+      width: 256px;
+      height: 256px;
+    }
+
+    .main-ring svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .ring-content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ring-value {
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .ring-subtext {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .ring-label {
+      font-size: 11px;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 4px;
+    }
+
+    .macro-rings {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .macro-ring {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .macro-ring-svg {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin-bottom: 8px;
+    }
+
+    .macro-ring-svg svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .macro-ring-content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .macro-value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .macro-label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 2px;
+    }
+
+    .macro-goal {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .meals-card {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .meals-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 16px;
+    }
+
+    .meal-item {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .meal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .meal-name {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .meal-time {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .meal-macros {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .meal-macro {
+      text-align: left;
+    }
+
+    .meal-macro-label {
+      color: #6b7280;
+      font-size: 11px;
+      display: block;
+    }
+
+    .meal-macro-value {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: #9ca3af;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .transition {
+      transition: all 0.5s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="app">
+      <div class="loading">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    let currentState = null;
+
+    // Helper function to calculate progress
+    function calculateProgress(current, goal) {
+      return Math.min((current / goal) * 100, 100);
+    }
+
+    // Helper function to calculate stroke dasharray
+    function calculateStrokeDasharray(progress, radius) {
+      const circumference = 2 * Math.PI * radius;
+      const filled = (progress / 100) * circumference;
+      return `${filled} ${circumference}`;
+    }
+
+    // Format time
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    }
+
+    // Render the Health Ring
+    function render(state) {
+      if (!state) {
+        document.getElementById('app').innerHTML = `
+          <div class="loading">
+            <div class="spinner"></div>
+          </div>
+        `;
+        return;
+      }
+
+      const calorieProgress = calculateProgress(state.totalCalories, state.goals.calories);
+      const proteinProgress = calculateProgress(state.totalProtein, state.goals.protein);
+      const carbsProgress = calculateProgress(state.totalCarbs, state.goals.carbs);
+      const fatsProgress = calculateProgress(state.totalFats, state.goals.fats);
+
+      const mainColor = calorieProgress <= 100 ? '#10b981' : '#ef4444';
+
+      const mealsHtml = state.meals.length === 0 
+        ? '<div class="empty-state">No meals logged yet. Start by telling ChatGPT what you ate!</div>'
+        : state.meals.map(meal => `
+            <div class="meal-item">
+              <div class="meal-header">
+                <span class="meal-name">${meal.name}</span>
+                <span class="meal-time">${formatTime(meal.timestamp)}</span>
+              </div>
+              <div class="meal-macros">
+                <div class="meal-macro">
+                  <span class="meal-macro-label">Cal</span>
+                  <div class="meal-macro-value">${meal.calories}</div>
+                </div>
+                <div class="meal-macro">
+                  <span class="meal-macro-label">Protein</span>
+                  <div class="meal-macro-value" style="color: #3b82f6;">${meal.protein}g</div>
+                </div>
+                <div class="meal-macro">
+                  <span class="meal-macro-label">Carbs</span>
+                  <div class="meal-macro-value" style="color: #f97316;">${meal.carbs}g</div>
+                </div>
+                <div class="meal-macro">
+                  <span class="meal-macro-label">Fats</span>
+                  <div class="meal-macro-value" style="color: #a855f7;">${meal.fats}g</div>
+                </div>
+              </div>
+            </div>
+          `).join('');
+
+      document.getElementById('app').innerHTML = `
+        <div class="health-ring-card">
+          <div class="header">
+            <h2>Today's Progress</h2>
+            <span class="date-badge">${new Date(state.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+          </div>
+
+          <div class="ring-container">
+            <div class="main-ring">
+              <svg viewBox="0 0 256 256">
+                <circle
+                  cx="128"
+                  cy="128"
+                  r="110"
+                  fill="none"
+                  stroke="#e5e7eb"
+                  stroke-width="20"
+                />
+                <circle
+                  cx="128"
+                  cy="128"
+                  r="110"
+                  fill="none"
+                  stroke="${mainColor}"
+                  stroke-width="20"
+                  stroke-dasharray="${calculateStrokeDasharray(calorieProgress, 110)}"
+                  stroke-linecap="round"
+                  class="transition"
+                />
+              </svg>
+              <div class="ring-content">
+                <div class="ring-value" style="color: ${mainColor};">${state.totalCalories}</div>
+                <div class="ring-subtext">of ${state.goals.calories}</div>
+                <div class="ring-label">calories</div>
+              </div>
+            </div>
+
+            <div class="macro-rings">
+              <div class="macro-ring">
+                <div class="macro-ring-svg">
+                  <svg viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="32" fill="none" stroke="#e5e7eb" stroke-width="6" />
+                    <circle 
+                      cx="40" 
+                      cy="40" 
+                      r="32" 
+                      fill="none" 
+                      stroke="#3b82f6" 
+                      stroke-width="6"
+                      stroke-dasharray="${calculateStrokeDasharray(proteinProgress, 32)}"
+                      stroke-linecap="round"
+                      class="transition"
+                    />
+                  </svg>
+                  <div class="macro-ring-content">
+                    <div class="macro-value" style="color: #3b82f6;">${state.totalProtein}</div>
+                  </div>
+                </div>
+                <div class="macro-label">Protein</div>
+                <div class="macro-goal">${state.goals.protein}g</div>
+              </div>
+
+              <div class="macro-ring">
+                <div class="macro-ring-svg">
+                  <svg viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="32" fill="none" stroke="#e5e7eb" stroke-width="6" />
+                    <circle 
+                      cx="40" 
+                      cy="40" 
+                      r="32" 
+                      fill="none" 
+                      stroke="#f97316" 
+                      stroke-width="6"
+                      stroke-dasharray="${calculateStrokeDasharray(carbsProgress, 32)}"
+                      stroke-linecap="round"
+                      class="transition"
+                    />
+                  </svg>
+                  <div class="macro-ring-content">
+                    <div class="macro-value" style="color: #f97316;">${state.totalCarbs}</div>
+                  </div>
+                </div>
+                <div class="macro-label">Carbs</div>
+                <div class="macro-goal">${state.goals.carbs}g</div>
+              </div>
+
+              <div class="macro-ring">
+                <div class="macro-ring-svg">
+                  <svg viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="32" fill="none" stroke="#e5e7eb" stroke-width="6" />
+                    <circle 
+                      cx="40" 
+                      cy="40" 
+                      r="32" 
+                      fill="none" 
+                      stroke="#a855f7" 
+                      stroke-width="6"
+                      stroke-dasharray="${calculateStrokeDasharray(fatsProgress, 32)}"
+                      stroke-linecap="round"
+                      class="transition"
+                    />
+                  </svg>
+                  <div class="macro-ring-content">
+                    <div class="macro-value" style="color: #a855f7;">${state.totalFats}</div>
+                  </div>
+                </div>
+                <div class="macro-label">Fats</div>
+                <div class="macro-goal">${state.goals.fats}g</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="meals-card">
+          <div class="meals-header">Today's Meals</div>
+          ${mealsHtml}
+        </div>
+      `;
+    }
+
+    // Listen for state updates from ChatGPT via window.openai API
+    if (window.openai) {
+      // ChatGPT Apps SDK integration
+      window.openai.onContextUpdate((context) => {
+        console.log('Context update from ChatGPT:', context);
+        if (context.state) {
+          currentState = context.state;
+          render(currentState);
+        }
+      });
+
+      // Request initial state
+      window.openai.requestState();
+    } else {
+      // Fallback: Fetch from our backend directly (for testing outside ChatGPT)
+      fetch('/api/state')
+        .then(res => res.json())
+        .then(result => {
+          if (result.success) {
+            currentState = result.data;
+            render(currentState);
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching state:', err);
+        });
+    }
+
+    // Initial render
+    render(currentState);
+  </script>
+</body>
+</html>
