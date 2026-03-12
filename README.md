@@ -2,6 +2,14 @@
 
 An official ChatGPT Marketplace app that brings an interactive Health Ring UI directly into your chat experience. Track your nutrition naturally by talking to ChatGPT - just say what you ate!
 
+## V1 Status (Locked)
+
+- Release: `v1.0.0`
+- Production MCP URL: `https://figma-calgpt-project.vercel.app/mcp`
+- Widget template URI: `ui://widget/gpt-calories-v3.html`
+- Release notes: [`CHANGELOG.md`](./CHANGELOG.md)
+- Reproducibility + lock checklist: [`RELEASE_LOCK.md`](./RELEASE_LOCK.md)
+
 ## 🎯 Architecture Overview
 
 This follows the official **ChatGPT Apps SDK** architecture:
@@ -74,6 +82,8 @@ Edit `/public/manifest.json` and replace the URLs:
   }
 }
 ```
+
+For current ChatGPT App setup, you can also connect directly with the MCP URL (`https://YOUR-APP.vercel.app/mcp`) from **Settings → Apps → Create app**.
 
 ### Step 3: Sideload into ChatGPT
 

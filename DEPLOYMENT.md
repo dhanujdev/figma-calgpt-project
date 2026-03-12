@@ -1,5 +1,13 @@
 # 🚀 GPT-Calories Deployment Guide
 
+## V1 Production Baseline
+
+- Locked release: `v1.0.0`
+- Production MCP URL: `https://figma-calgpt-project.vercel.app/mcp`
+- Widget template URI: `ui://widget/gpt-calories-v3.html`
+- Release checklist and reproducibility: [`RELEASE_LOCK.md`](./RELEASE_LOCK.md)
+- Change history: [`CHANGELOG.md`](./CHANGELOG.md)
+
 ## Quick Deploy to Production
 
 ### Step 1: Deploy to Vercel
@@ -63,6 +71,8 @@ After deployment, update `/public/manifest.json`:
    - Start a new chat
    - Say: "I ate a chicken sandwich with 700 calories, 35g protein, 50g carbs, 30g fats"
    - The Health Ring should appear inline!
+
+> If ChatGPT still shows stale widget metadata after deploy, click **Refresh** in the app settings. If needed, disconnect and reconnect the app to force metadata reload.
 
 ## Architecture Overview
 
