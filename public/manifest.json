@@ -2,13 +2,13 @@
   "schema_version": "v1",
   "name": "GPT-Calories",
   "description": "Track your nutrition with an interactive Health Ring. Log meals through conversation and see your macros update in real-time.",
-  "icon": "https://via.placeholder.com/512x512/10b981/ffffff?text=GPT-Cal",
+  "icon": "https://figma-calgpt-project.vercel.app/icon.svg",
   "api": {
     "type": "mcp",
-    "url": "https://your-app.vercel.app/mcp"
+    "url": "https://figma-calgpt-project.vercel.app/mcp"
   },
   "ui_component": {
-    "url": "https://your-app.vercel.app/component.html",
+    "url": "https://figma-calgpt-project.vercel.app/component.html",
     "display_mode": "inline"
   },
   "permissions": [
