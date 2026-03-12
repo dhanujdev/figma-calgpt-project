@@ -21,7 +21,7 @@ const SERVER_INFO = {
   version: "1.1.0",
 };
 
-const WIDGET_URI = "ui://widget/gpt-calories-v2.html";
+const WIDGET_URI = "ui://widget/gpt-calories-v3.html";
 const WIDGET_MIME_TYPE = "text/html;profile=mcp-app";
 const NOAUTH_SCHEME = { type: "noauth" } as const;
 
