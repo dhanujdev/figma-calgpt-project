@@ -1,72 +1,78 @@
-# Release Lock: v1.0.0
+# Release Lock: v2.0.0 (V2/V3 Contract)
 
-This document defines the locked, reproducible baseline for V1.
+This document defines the locked reproducible baseline for V2/V3 rollout.
 
 ## Release Identity
 
-- Version: `1.0.0`
-- Git tag: `v1.0.0`
-- Branch at release: `main`
-- Deployment target: Vercel production
+- Version: `2.0.0`
+- Branch baseline: `main`
 - Canonical MCP URL: `https://figma-calgpt-project.vercel.app/mcp`
-- Canonical widget URI: `ui://widget/gpt-calories-v3.html`
+- Canonical widget URI: `ui://widget/gpt-calories-v4.html`
+- SQL migration: `supabase/migrations/20260312_v2_v3_schema.sql`
 
 ## Runtime Inputs (Required)
 
-Set in Vercel project environment:
+Set in Vercel project + Supabase function runtime:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-## Dependency Lock
+Optional:
 
-- Use `npm ci` (not `npm install`) for reproducible installs.
-- Dependency graph is pinned via `package-lock.json`.
-- Project version is pinned at `1.0.0` in `package.json` and `package-lock.json`.
+- `ALLOW_DEMO_MODE=true|false`
+- `OAUTH_AUTHORIZATION_SERVER`
+- `OAUTH_AUTHORIZATION_ENDPOINT`
+- `OAUTH_TOKEN_ENDPOINT`
+- `OAUTH_REGISTRATION_ENDPOINT`
 
-## Smoke Test Contract
+## Reproducibility Rules
 
-Run these after any redeploy:
+1. Use `npm ci` for deterministic install.
+2. Keep `package-lock.json` in sync with `package.json`.
+3. Run SQL migration before production traffic switch.
+4. Do not reuse old widget URI for breaking widget changes.
+
+## Strict Gate (Block Deploy On Failure)
 
 ```bash
-# MCP health
+npm run test:strict
+```
+
+Gate includes:
+
+- MCP contract checks
+- Widget bridge checks
+- SQL migration checks
+- UI shell checks
+- Build
+- Optional live smoke (`MCP_BASE_URL`)
+
+## MCP Smoke Contract
+
+```bash
 curl https://figma-calgpt-project.vercel.app/mcp
 
-# Tool metadata (must include ui://widget/gpt-calories-v3.html)
 curl -X POST https://figma-calgpt-project.vercel.app/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 
-# Resources list (must include v3 widget URI)
 curl -X POST https://figma-calgpt-project.vercel.app/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":2,"method":"resources/list"}'
 
-# Resources read (must return text/html;profile=mcp-app)
 curl -X POST https://figma-calgpt-project.vercel.app/mcp \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":"ui://widget/gpt-calories-v3.html"}}'
+  -d '{"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":"ui://widget/gpt-calories-v4.html"}}'
 
-# State call (must return structuredContent with date/goals/meals)
 curl -X POST https://figma-calgpt-project.vercel.app/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"sync_state","arguments":{}}}'
 ```
 
-## ChatGPT Connector Note
+## Rollback Steps
 
-ChatGPT can cache template metadata by URI. If metadata appears stale:
-
-1. Open ChatGPT settings: **Apps**.
-2. Open `GPT-Calories`.
-3. Click **Refresh**.
-4. If still stale, disconnect and reconnect with the same MCP URL.
-
-## Change Control After V1
-
-For any post-V1 changes:
-
-1. Keep V1 tag immutable.
-2. Bump widget URI for breaking UI/template changes.
-3. Update `CHANGELOG.md`.
-4. Add a new semantic version tag.
+1. Re-point tool metadata to prior widget URI if needed.
+2. Keep SQL tables intact; rollback app/api code first.
+3. Enable `ALLOW_DEMO_MODE=true` during incident if auth enforcement causes blocking.
+4. Re-run MCP smoke contract after rollback.

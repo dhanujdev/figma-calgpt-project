@@ -1,7 +1,7 @@
 {
   "schema_version": "v1",
   "name": "GPT-Calories",
-  "description": "Track your nutrition with an interactive Health Ring. Log meals through conversation and see your macros update in real-time.",
+  "description": "Track nutrition, progress analytics, goals, and settings with an interactive ChatGPT widget.",
   "icon": "https://figma-calgpt-project.vercel.app/icon.svg",
   "api": {
     "type": "mcp",
@@ -16,83 +16,17 @@
   ],
   "capabilities": {
     "tools": [
-      {
-        "name": "log_meal",
-        "description": "Log a meal with its nutritional information (calories, protein, carbs, fats). Call this when the user mentions eating something.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string",
-              "description": "The name of the food or meal (e.g., 'Chicken Sandwich', 'Breakfast Burrito')"
-            },
-            "calories": {
-              "type": "number",
-              "description": "Total calories in the meal"
-            },
-            "protein": {
-              "type": "number",
-              "description": "Protein in grams"
-            },
-            "carbs": {
-              "type": "number",
-              "description": "Carbohydrates in grams"
-            },
-            "fats": {
-              "type": "number",
-              "description": "Fats in grams"
-            }
-          },
-          "required": ["name", "calories"]
-        }
-      },
-      {
-        "name": "sync_state",
-        "description": "Get the current daily nutrition state including all meals logged today and progress toward goals",
-        "parameters": {
-          "type": "object",
-          "properties": {}
-        }
-      },
-      {
-        "name": "delete_meal",
-        "description": "Delete a previously logged meal by its ID",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "meal_id": {
-              "type": "string",
-              "description": "The unique ID of the meal to delete"
-            }
-          },
-          "required": ["meal_id"]
-        }
-      },
-      {
-        "name": "update_goals",
-        "description": "Update daily nutritional goals",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "calories": {
-              "type": "number",
-              "description": "Daily calorie goal"
-            },
-            "protein": {
-              "type": "number",
-              "description": "Daily protein goal in grams"
-            },
-            "carbs": {
-              "type": "number",
-              "description": "Daily carbohydrate goal in grams"
-            },
-            "fats": {
-              "type": "number",
-              "description": "Daily fat goal in grams"
-            }
-          }
-        }
-      }
+      { "name": "log_meal", "description": "Log a meal with calories and macros." },
+      { "name": "sync_state", "description": "Fetch daily state plus progress payload." },
+      { "name": "delete_meal", "description": "Delete a meal by ID." },
+      { "name": "update_goals", "description": "Update calorie/macro/weight goals." },
+      { "name": "log_weight", "description": "Log a weight entry." },
+      { "name": "get_progress", "description": "Get chart-ready progress analytics." },
+      { "name": "update_preferences", "description": "Update units, reminders, and profile preferences." },
+      { "name": "upload_progress_photo", "description": "Save progress photo metadata." },
+      { "name": "run_daily_checkin", "description": "Get daily deterministic coaching insights." },
+      { "name": "run_weekly_review", "description": "Get weekly summary insights." },
+      { "name": "suggest_goal_adjustments", "description": "Get recommendation-only goal adjustments." }
     ]
   }
 }

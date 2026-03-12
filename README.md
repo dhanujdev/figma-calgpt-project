@@ -1,201 +1,103 @@
-# GPT-Calories - Native ChatGPT App
+# GPT-Calories - ChatGPT App (V2/V3)
 
-An official ChatGPT Marketplace app that brings an interactive Health Ring UI directly into your chat experience. Track your nutrition naturally by talking to ChatGPT - just say what you ate!
+A ChatGPT-native nutrition tracker with:
 
-## V1 Status (Locked)
+- V1 compatibility (`log_meal`, `sync_state`, `delete_meal`, `update_goals`)
+- V2 backend tooling (`log_weight`, `get_progress`, `update_preferences`, `upload_progress_photo`)
+- V3 deterministic coaching orchestration (`run_daily_checkin`, `run_weekly_review`, `suggest_goal_adjustments`)
 
-- Release: `v1.0.0`
-- Production MCP URL: `https://figma-calgpt-project.vercel.app/mcp`
-- Widget template URI: `ui://widget/gpt-calories-v3.html`
-- Release notes: [`CHANGELOG.md`](./CHANGELOG.md)
-- Reproducibility + lock checklist: [`RELEASE_LOCK.md`](./RELEASE_LOCK.md)
+## Production URLs
 
-## 🎯 Architecture Overview
+- MCP endpoint: `https://figma-calgpt-project.vercel.app/mcp`
+- OAuth protected resource metadata: `https://figma-calgpt-project.vercel.app/.well-known/oauth-protected-resource`
+- OAuth authorization server metadata: `https://figma-calgpt-project.vercel.app/.well-known/oauth-authorization-server`
+- Widget template URI: `ui://widget/gpt-calories-v4.html`
 
-This follows the official **ChatGPT Apps SDK** architecture:
+## Architecture
 
-```
-┌─────────────┐
-│   ChatGPT   │  ← The Brain (understanding & reasoning)
-│  (Native)   │
-└──────┬──────┘
-       │
-       ├─────────────┐
-       │             │
-       ▼             ▼
-┌─────────────┐  ┌──────────────┐
-│ MCP Server  │  │ Web Component│  ← The Face (UI rendering)
-│ (Tools)     │  │ (Health Ring)│
-└──────┬──────┘  └──────────────┘
-       │
-       ▼
-┌─────────────┐
-│  Supabase   │  ← The Memory (state storage)
-│     KV      │
-└─────────────┘
-```
+- `api/mcp.ts`: ChatGPT-facing MCP endpoint and tool/resource contract.
+- `supabase/functions/server/`: Tool handlers and domain logic (SQL-first with legacy KV fallback).
+- `public/component.html`: ChatGPT widget v4 (`window.openai.toolOutput` + `window.openai.callTool`).
+- `src/app/App.tsx`: Lightweight local dev harness that previews the vanilla widget and state snapshot.
 
-### Key Components
+## Required Environment Variables
 
-1. **MCP Endpoint** (`/api/mcp.ts`)
-   - Public MCP endpoint for ChatGPT Apps: `https://YOUR-APP.vercel.app/mcp`
-   - Proxies tool calls to Supabase Edge Functions with server-side auth headers
-   - Exposes tools: `log_meal`, `sync_state`, `delete_meal`, `update_goals`
+Set in Vercel and Supabase function runtime:
 
-2. **Web Component** (`/public/component.html`)
-   - Standalone HTML/JS component that renders the Health Ring
-   - Listens to `window.openai` API for state updates from ChatGPT
-   - Gets injected into the chat stream natively
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-3. **React Demo App** (`/src/app/App.tsx`)
-   - Full-featured demo for testing outside ChatGPT
-   - Shows what the experience will look like
-   - Not needed for the ChatGPT integration
+Optional OAuth metadata overrides:
 
-## 🚀 Deployment
+- `OAUTH_AUTHORIZATION_SERVER`
+- `OAUTH_AUTHORIZATION_ENDPOINT`
+- `OAUTH_TOKEN_ENDPOINT`
+- `OAUTH_REGISTRATION_ENDPOINT`
 
-### Step 1: Deploy to Vercel
+Optional rollout guard:
 
-```bash
-# Install Vercel CLI
-npm i -g vercel
+- `ALLOW_DEMO_MODE` (`true` by default; set to `false` to require auth)
 
-# Deploy
-vercel --prod
-```
+## Database Migration
 
-Your app will be deployed to: `https://your-app.vercel.app`
+Run SQL migration before V2/V3 rollout:
 
-### Step 2: Update manifest.json
+- [`supabase/migrations/20260312_v2_v3_schema.sql`](./supabase/migrations/20260312_v2_v3_schema.sql)
 
-Edit `/public/manifest.json` and replace the URLs:
+It creates:
 
-```json
-{
-  "api": {
-    "type": "mcp",
-    "url": "https://YOUR-APP.vercel.app/mcp"
-  },
-  "ui_component": {
-    "url": "https://YOUR-APP.vercel.app/component.html",
-    "display_mode": "inline"
-  }
-}
-```
+- `nutrition_goals`
+- `user_preferences`
+- `meals`
+- `daily_totals`
+- `weight_entries`
+- `progress_photos`
+- `streak_events`
+- `badge_events`
 
-For current ChatGPT App setup, you can also connect directly with the MCP URL (`https://YOUR-APP.vercel.app/mcp`) from **Settings → Apps → Create app**.
+## Strict Release Gate
 
-### Step 3: Sideload into ChatGPT
-
-1. Go to **ChatGPT** → **Settings** → **Apps**
-2. Click **Create App** (or **Developer Mode**)
-3. Enter your manifest URL: `https://YOUR-VERCEL-URL.vercel.app/manifest.json`
-4. Test it out!
-
-## 💬 How to Use in ChatGPT
-
-Once installed, just talk naturally:
-
-- **"I ate a chicken sandwich with 500 calories, 35g protein, 45g carbs, and 18g fats"**
-- **"I had breakfast - scrambled eggs with toast, about 400 calories"**
-- **"Show me my progress today"**
-- **"Set my daily goal to 2200 calories"**
-
-ChatGPT will:
-1. Understand what you ate
-2. Call the `log_meal` tool with the nutrition data
-3. Inject the Health Ring UI showing your updated progress
-
-## 🛠️ MCP Tools Available
-
-### log_meal
-Logs a meal with nutritional information.
-```json
-{
-  "name": "Chicken Sandwich",
-  "calories": 500,
-  "protein": 35,
-  "carbs": 45,
-  "fats": 18
-}
-```
-
-### sync_state
-Gets current daily nutrition state.
-```json
-{}
-```
-
-### delete_meal
-Removes a meal by ID.
-```json
-{
-  "meal_id": "meal_12345"
-}
-```
-
-### update_goals
-Updates daily nutritional goals.
-```json
-{
-  "calories": 2200,
-  "protein": 150,
-  "carbs": 220,
-  "fats": 70
-}
-```
-
-## 🎨 The Health Ring
-
-The circular progress ring changes color based on your progress:
-- **Emerald Green** (#10b981) - Under goal (healthy)
-- **Red** (#ef4444) - Over goal
-
-Includes mini rings for:
-- **Protein** (Blue)
-- **Carbs** (Orange)  
-- **Fats** (Purple)
-
-## 📝 Development
-
-### Local Testing (Demo Mode)
+Run before deploy:
 
 ```bash
-# Install dependencies
+npm run test:strict
+```
+
+This validates:
+
+- MCP contract coverage and widget v4 URI
+- Widget bridge hooks (`toolOutput`, `callTool`, `setWidgetState`)
+- SQL migration table/RLS coverage
+- Widget-first dev harness wiring
+- Build
+- Optional live MCP smoke tests (`MCP_BASE_URL`)
+
+## Local Development
+
+```bash
 npm install
-
-# Run dev server
 npm run dev
 ```
 
-Visit `http://localhost:5173` to see the standalone React demo.
+Open `http://localhost:5173`.
 
-### Testing the Web Component
+## Tool List
 
-Open `/public/component.html` directly in a browser. It will fetch state from `/api/state` on the deployed app.
+- `log_meal`
+- `sync_state`
+- `delete_meal`
+- `update_goals`
+- `log_weight`
+- `get_progress`
+- `update_preferences`
+- `upload_progress_photo`
+- `run_daily_checkin`
+- `run_weekly_review`
+- `suggest_goal_adjustments`
 
-## 🔒 Security Notes
+## Notes on Auth + Safety
 
-- CORS is wide open (`*`) for ChatGPT to access the component
-- The MCP endpoint should validate requests from OpenAI in production
-- User data is stored in Supabase KV store (key-value table)
-- Daily states are keyed by date: `daily_state:YYYY-MM-DD`
-
-## 📚 References
-
-- [OpenAI ChatGPT Apps Docs](https://platform.openai.com/docs/chatgpt-apps)
-- [MCP (Model Context Protocol)](https://modelcontextprotocol.io/)
-- [ChatGPT UI Component Library](https://platform.openai.com/docs/chatgpt-apps/ui-components)
-
-## 🎯 The "Codex" Method
-
-As shown in the OpenAI Build Hour, this was scaffolded using:
-1. **ChatGPT Codex** (AI coding agent)
-2. **OpenAI Docs MCP** (for ChatGPT Apps SDK knowledge)
-3. **Supabase MCP** (for database scaffolding)
-
-This is the modern way to build - let AI agents write the boilerplate! 🚀
-
----
-
-Built with ❤️ following the official ChatGPT Apps architecture.
+- Mixed auth metadata is exposed in MCP tool descriptors.
+- For protected tool flows, MCP returns auth challenge metadata (`mcp/www_authenticate`) when needed.
+- Legacy KV fallback is kept to avoid hard breakage before SQL migration is applied.

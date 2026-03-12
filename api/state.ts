@@ -9,6 +9,19 @@ function setCors(res: VercelResponse): void {
   );
 }
 
+function buildAppOrigin(req: VercelRequest): string {
+  const hostHeader = (req.headers["x-forwarded-host"] ?? req.headers.host ?? "") as
+    | string
+    | string[];
+  const protoHeader = (req.headers["x-forwarded-proto"] ?? "https") as
+    | string
+    | string[];
+  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+  const proto = Array.isArray(protoHeader) ? protoHeader[0] : protoHeader;
+  const safeHost = host.split(",")[0].trim() || "figma-calgpt-project.vercel.app";
+  return `${proto.split(",")[0].trim() || "https"}://${safeHost}`;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
 
@@ -20,41 +33,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ success: false, error: "Method Not Allowed" });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return res
-      .status(500)
-      .json({ success: false, error: "Missing SUPABASE_URL or SUPABASE_ANON_KEY" });
-  }
+  const appOrigin = buildAppOrigin(req);
 
   try {
-    const endpoint = `${supabaseUrl}/functions/v1/make-server-ae24ed01/state`;
-    const response = await fetch(endpoint, {
-      method: "GET",
+    const rpcResponse = await fetch(`${appOrigin}/api/mcp`, {
+      method: "POST",
       headers: {
-        Authorization: `Bearer ${supabaseAnonKey}`,
-        apikey: supabaseAnonKey,
+        "Content-Type": "application/json",
+        ...(req.headers.authorization
+          ? { Authorization: String(req.headers.authorization) }
+          : {}),
       },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "sync_state",
+          arguments: {},
+        },
+      }),
     });
 
-    const text = await response.text();
-    let payload: unknown = null;
-    try {
-      payload = text ? JSON.parse(text) : null;
-    } catch {
-      payload = { success: false, error: text };
+    const rpcPayload = await rpcResponse.json();
+    if (!rpcResponse.ok || rpcPayload?.error) {
+      const message =
+        rpcPayload?.error?.message ??
+        rpcPayload?.result?.structuredContent?.error ??
+        "sync_state failed";
+      return res.status(502).json({ success: false, error: message });
     }
 
-    if (!response.ok) {
-      const reason =
-        (payload as { error?: string })?.error ??
-        `Supabase state request failed (${response.status})`;
-      return res.status(502).json({ success: false, error: reason });
+    const data = rpcPayload?.result?.structuredContent ?? null;
+    if (!data) {
+      return res.status(502).json({ success: false, error: "Missing structuredContent" });
     }
 
-    return res.status(200).json(payload);
+    return res.status(200).json({
+      success: true,
+      state: data,
+    });
   } catch (error) {
     return res.status(502).json({
       success: false,

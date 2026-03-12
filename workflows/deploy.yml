@@ -22,8 +22,11 @@ jobs:
           node-version: '18'
       
       - name: Install dependencies
-        run: npm install
-      
+        run: npm ci
+
+      - name: Strict Gate
+        run: npm run test:strict
+
       - name: Build
         run: npm run build
       

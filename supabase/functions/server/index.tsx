@@ -5,106 +5,115 @@ import * as mcpHandler from "./mcp_handler.tsx";
 
 const app = new Hono();
 
-// Enable logger
-app.use('*', logger(console.log));
-
-// Enable CORS for all routes and methods
+app.use("*", logger(console.log));
 app.use(
   "/*",
   cors({
     origin: "*",
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-User-Authorization", "apikey"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
   }),
 );
 
-// Health check endpoint
-app.get("/make-server-ae24ed01/health", (c) => {
-  return c.json({ status: "ok" });
-});
+function requestContext(c: { req: { header: (key: string) => string | undefined } }) {
+  const authHeader = c.req.header("x-user-authorization") ?? c.req.header("authorization");
+  return { authHeader };
+}
 
-// MCP Protocol Endpoint
+app.get("/make-server-ae24ed01/health", (c) => c.json({ status: "ok" }));
+
 app.post("/make-server-ae24ed01/mcp", async (c) => {
   try {
     const body = await c.req.json();
     const { method, params } = body;
-
-    console.log(`MCP call: ${method}`, params);
+    const ctx = requestContext(c);
 
     let result;
     switch (method) {
       case "log_meal":
-        result = await mcpHandler.logMeal(params);
+        result = await mcpHandler.logMeal(params ?? {}, ctx);
         break;
       case "sync_state":
-        result = await mcpHandler.syncState();
+        result = await mcpHandler.syncState(params ?? {}, ctx);
         break;
       case "delete_meal":
-        result = await mcpHandler.deleteMeal(params);
+        result = await mcpHandler.deleteMeal(params ?? {}, ctx);
         break;
       case "update_goals":
-        result = await mcpHandler.updateGoals(params);
+        result = await mcpHandler.updateGoals(params ?? {}, ctx);
+        break;
+      case "log_weight":
+        result = await mcpHandler.logWeight(params ?? {}, ctx);
+        break;
+      case "get_progress":
+        result = await mcpHandler.getProgress(params ?? {}, ctx);
+        break;
+      case "update_preferences":
+        result = await mcpHandler.updatePreferences(params ?? {}, ctx);
+        break;
+      case "upload_progress_photo":
+        result = await mcpHandler.uploadProgressPhoto(params ?? {}, ctx);
+        break;
+      case "run_daily_checkin":
+        result = await mcpHandler.runDailyCheckin(params ?? {}, ctx);
+        break;
+      case "run_weekly_review":
+        result = await mcpHandler.runWeeklyReview(params ?? {}, ctx);
+        break;
+      case "suggest_goal_adjustments":
+        result = await mcpHandler.suggestGoalAdjustments(params ?? {}, ctx);
         break;
       default:
-        return c.json({ error: `Unknown method: ${method}` }, 400);
+        return c.json({ success: false, error: `Unknown method: ${method}` }, 400);
     }
 
     return c.json(result);
   } catch (error) {
-    console.log(`MCP error: ${error}`);
     return c.json({ success: false, error: String(error) }, 500);
   }
 });
 
-// REST API endpoints for direct access (testing/fallback)
 app.get("/make-server-ae24ed01/state", async (c) => {
-  try {
-    const result = await mcpHandler.syncState();
-    return c.json(result);
-  } catch (error) {
-    console.log(`Error fetching state: ${error}`);
-    return c.json({ success: false, error: String(error) }, 500);
-  }
+  const result = await mcpHandler.syncState({}, requestContext(c));
+  return c.json(result);
 });
 
 app.post("/make-server-ae24ed01/log-meal", async (c) => {
-  try {
-    const params = await c.req.json();
-    const result = await mcpHandler.logMeal(params);
-    return c.json(result);
-  } catch (error) {
-    console.log(`Error logging meal: ${error}`);
-    return c.json({ success: false, error: String(error) }, 500);
-  }
+  const params = await c.req.json();
+  const result = await mcpHandler.logMeal(params, requestContext(c));
+  return c.json(result, result.success ? 200 : 400);
 });
 
 app.delete("/make-server-ae24ed01/meal/:id", async (c) => {
-  try {
-    const meal_id = c.req.param('id');
-    const result = await mcpHandler.deleteMeal({ meal_id });
-    
-    if (!result.success) {
-      return c.json(result, 404);
-    }
-    
-    return c.json(result);
-  } catch (error) {
-    console.log(`Error deleting meal: ${error}`);
-    return c.json({ success: false, error: String(error) }, 500);
-  }
+  const meal_id = c.req.param("id");
+  const result = await mcpHandler.deleteMeal({ meal_id }, requestContext(c));
+  return c.json(result, result.success ? 200 : 404);
 });
 
 app.post("/make-server-ae24ed01/goals", async (c) => {
-  try {
-    const params = await c.req.json();
-    const result = await mcpHandler.updateGoals(params);
-    return c.json(result);
-  } catch (error) {
-    console.log(`Error updating goals: ${error}`);
-    return c.json({ success: false, error: String(error) }, 500);
-  }
+  const params = await c.req.json();
+  const result = await mcpHandler.updateGoals(params, requestContext(c));
+  return c.json(result, result.success ? 200 : 400);
+});
+
+app.post("/make-server-ae24ed01/weight", async (c) => {
+  const params = await c.req.json();
+  const result = await mcpHandler.logWeight(params, requestContext(c));
+  return c.json(result, result.success ? 200 : 400);
+});
+
+app.get("/make-server-ae24ed01/progress", async (c) => {
+  const range = c.req.query("range") ?? "90D";
+  const result = await mcpHandler.getProgress({ range }, requestContext(c));
+  return c.json(result, result.success ? 200 : 400);
+});
+
+app.post("/make-server-ae24ed01/preferences", async (c) => {
+  const params = await c.req.json();
+  const result = await mcpHandler.updatePreferences(params, requestContext(c));
+  return c.json(result, result.success ? 200 : 400);
 });
 
 Deno.serve(app.fetch);
