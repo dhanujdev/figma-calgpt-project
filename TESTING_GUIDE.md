@@ -11,20 +11,23 @@ Test your MCP server endpoints directly.
 #### Test the Health Check
 
 ```bash
-curl https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/health
+curl https://YOUR-VERCEL-URL.vercel.app/mcp
 ```
 
 Expected response:
 ```json
-{"status":"ok"}
+{
+  "ok": true,
+  "endpoint": "/api/mcp",
+  "message": "MCP endpoint is up. Use POST with JSON-RPC body."
+}
 ```
 
 #### Test Sync State
 
 ```bash
 curl -X GET \
-  https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/state \
-  -H "Authorization: Bearer YOUR-ANON-KEY"
+  https://YOUR-VERCEL-URL.vercel.app/api/state
 ```
 
 Expected response:
@@ -52,24 +55,36 @@ Expected response:
 
 ```bash
 curl -X POST \
-  https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/log-meal \
-  -H "Authorization: Bearer YOUR-ANON-KEY" \
+  https://YOUR-VERCEL-URL.vercel.app/mcp \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Test Burger",
-    "calories": 700,
-    "protein": 35,
-    "carbs": 50,
-    "fats": 30
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "log_meal",
+      "arguments": {
+        "name": "Test Burger",
+        "calories": 700,
+        "protein": 35,
+        "carbs": 50,
+        "fats": 30
+      }
+    }
   }'
 ```
 
 Expected response:
 ```json
 {
-  "success": true,
-  "state": { ... },
-  "message": "Logged Test Burger: 700 calories"
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "isError": false,
+    "structuredContent": {
+      "success": true
+    }
+  }
 }
 ```
 
@@ -77,17 +92,21 @@ Expected response:
 
 ```bash
 curl -X POST \
-  https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/mcp \
-  -H "Authorization: Bearer YOUR-ANON-KEY" \
+  https://YOUR-VERCEL-URL.vercel.app/mcp \
   -H "Content-Type: application/json" \
   -d '{
-    "tool": "log_meal",
-    "parameters": {
-      "name": "Chicken Sandwich",
-      "calories": 500,
-      "protein": 35,
-      "carbs": 45,
-      "fats": 18
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {
+      "name": "log_meal",
+      "arguments": {
+        "name": "Chicken Sandwich",
+        "calories": 500,
+        "protein": 35,
+        "carbs": 45,
+        "fats": 18
+      }
     }
   }'
 ```
@@ -263,10 +282,9 @@ Once deployed and installed in ChatGPT:
 # Send 100 rapid requests
 for i in {1..100}; do
   curl -X POST \
-    https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/log-meal \
-    -H "Authorization: Bearer YOUR-ANON-KEY" \
+    https://YOUR-VERCEL-URL.vercel.app/mcp \
     -H "Content-Type: application/json" \
-    -d "{\"name\":\"Meal $i\",\"calories\":100}" &
+    -d "{\"jsonrpc\":\"2.0\",\"id\":$i,\"method\":\"tools/call\",\"params\":{\"name\":\"log_meal\",\"arguments\":{\"name\":\"Meal $i\",\"calories\":100}}}" &
 done
 ```
 
@@ -291,8 +309,8 @@ Access-Control-Allow-Origin: *
 Test unauthorized access:
 
 ```bash
-# Without auth header (should fail on Supabase endpoints)
-curl https://YOUR-PROJECT-ID.supabase.co/functions/v1/make-server-ae24ed01/state
+# Public proxy check (Vercel route should still return a valid response shape)
+curl https://YOUR-VERCEL-URL.vercel.app/api/state
 ```
 
 #### Input Validation
@@ -301,13 +319,19 @@ Try to break the API:
 
 ```bash
 # SQL injection attempt
-curl -X POST ... -d '{"name":"DROP TABLE users--","calories":500}'
+curl -X POST https://YOUR-VERCEL-URL.vercel.app/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":101,"method":"tools/call","params":{"name":"log_meal","arguments":{"name":"DROP TABLE users--","calories":500}}}'
 
 # XSS attempt
-curl -X POST ... -d '{"name":"<script>alert(1)</script>","calories":500}'
+curl -X POST https://YOUR-VERCEL-URL.vercel.app/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":102,"method":"tools/call","params":{"name":"log_meal","arguments":{"name":"<script>alert(1)</script>","calories":500}}}'
 
 # Huge number
-curl -X POST ... -d '{"name":"Food","calories":999999999}'
+curl -X POST https://YOUR-VERCEL-URL.vercel.app/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":103,"method":"tools/call","params":{"name":"log_meal","arguments":{"name":"Food","calories":999999999}}}'
 ```
 
 All should be handled safely.
@@ -417,7 +441,7 @@ npx playwright test
 2. Verify KV store has data:
    ```bash
    # Check what keys exist
-   curl ... /state | jq '.state.date'
+   curl https://YOUR-VERCEL-URL.vercel.app/api/state | jq '.state.date'
    ```
 3. Confirm date key format is correct
 
@@ -450,7 +474,7 @@ Create a simple monitoring script:
 #!/bin/bash
 # health-check.sh
 
-HEALTH_URL="https://YOUR-PROJECT.supabase.co/functions/v1/make-server-ae24ed01/health"
+HEALTH_URL="https://YOUR-VERCEL-URL.vercel.app/mcp"
 
 response=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
 

@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { readFileSync } from "fs";
+import path from "path";
 
 type JsonRpcId = string | number | null;
 
@@ -9,10 +11,19 @@ type JsonRpcRequest = {
   params?: Record<string, unknown>;
 };
 
+type RpcContext = {
+  appOrigin: string;
+  supabaseUrl?: string;
+};
+
 const SERVER_INFO = {
   name: "gpt-calories-mcp",
-  version: "1.0.0",
+  version: "1.1.0",
 };
+
+const WIDGET_URI = "ui://widget/gpt-calories-v2.html";
+const WIDGET_MIME_TYPE = "text/html;profile=mcp-app";
+const NOAUTH_SCHEME = { type: "noauth" } as const;
 
 const TOOL_DEFS = [
   {
@@ -32,10 +43,21 @@ const TOOL_DEFS = [
       required: ["name", "calories"],
       additionalProperties: false,
     },
+    securitySchemes: [NOAUTH_SCHEME],
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
       openWorldHint: false,
+    },
+    _meta: {
+      securitySchemes: [NOAUTH_SCHEME],
+      ui: {
+        resourceUri: WIDGET_URI,
+        visibility: ["model", "app"],
+      },
+      "openai/outputTemplate": WIDGET_URI,
+      "openai/toolInvocation/invoking": "Logging meal...",
+      "openai/toolInvocation/invoked": "Meal logged",
     },
   },
   {
@@ -47,10 +69,21 @@ const TOOL_DEFS = [
       properties: {},
       additionalProperties: false,
     },
+    securitySchemes: [NOAUTH_SCHEME],
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
       openWorldHint: false,
+    },
+    _meta: {
+      securitySchemes: [NOAUTH_SCHEME],
+      ui: {
+        resourceUri: WIDGET_URI,
+        visibility: ["model", "app"],
+      },
+      "openai/outputTemplate": WIDGET_URI,
+      "openai/toolInvocation/invoking": "Syncing state...",
+      "openai/toolInvocation/invoked": "State synced",
     },
   },
   {
@@ -65,10 +98,21 @@ const TOOL_DEFS = [
       required: ["meal_id"],
       additionalProperties: false,
     },
+    securitySchemes: [NOAUTH_SCHEME],
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
       openWorldHint: false,
+    },
+    _meta: {
+      securitySchemes: [NOAUTH_SCHEME],
+      ui: {
+        resourceUri: WIDGET_URI,
+        visibility: ["model", "app"],
+      },
+      "openai/outputTemplate": WIDGET_URI,
+      "openai/toolInvocation/invoking": "Deleting meal...",
+      "openai/toolInvocation/invoked": "Meal deleted",
     },
   },
   {
@@ -85,13 +129,87 @@ const TOOL_DEFS = [
       },
       additionalProperties: false,
     },
+    securitySchemes: [NOAUTH_SCHEME],
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
       openWorldHint: false,
     },
+    _meta: {
+      securitySchemes: [NOAUTH_SCHEME],
+      ui: {
+        resourceUri: WIDGET_URI,
+        visibility: ["model", "app"],
+      },
+      "openai/outputTemplate": WIDGET_URI,
+      "openai/toolInvocation/invoking": "Updating goals...",
+      "openai/toolInvocation/invoked": "Goals updated",
+    },
   },
 ];
+
+function getWidgetHtml(): string {
+  const candidates = [
+    path.join(process.cwd(), "public", "component.html"),
+    path.join(process.cwd(), "dist", "component.html"),
+  ];
+
+  for (const filePath of candidates) {
+    try {
+      return readFileSync(filePath, "utf8");
+    } catch {
+      // Try next location.
+    }
+  }
+
+  return [
+    "<!DOCTYPE html>",
+    "<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>",
+    "<title>GPT-Calories Widget</title></head>",
+    "<body><pre id='root'>Loading...</pre>",
+    "<script>",
+    "function readOutput(){return window.openai?.toolOutput||null}",
+    "function render(){const out=readOutput();document.getElementById('root').textContent=JSON.stringify(out,null,2)}",
+    "window.addEventListener('openai:set_globals',render,{passive:true});render();",
+    "</script></body></html>",
+  ].join("");
+}
+
+function widgetResourceMeta(context: RpcContext) {
+  const connectDomains = new Set<string>([context.appOrigin]);
+  if (context.supabaseUrl) {
+    connectDomains.add(context.supabaseUrl);
+  }
+  const connectDomainList = Array.from(connectDomains);
+  const resourceDomainList = ["https://*.oaistatic.com", context.appOrigin];
+
+  return {
+    ui: {
+      prefersBorder: true,
+      domain: context.appOrigin,
+      csp: {
+        connectDomains: connectDomainList,
+        resourceDomains: resourceDomainList,
+      },
+    },
+    "openai/widgetPrefersBorder": true,
+    "openai/widgetDomain": context.appOrigin,
+    "openai/widgetCSP": {
+      connect_domains: connectDomainList,
+      resource_domains: resourceDomainList,
+    },
+    "openai/widgetDescription":
+      "Shows today's calories, macros, and meals from GPT-Calories.",
+  };
+}
+
+function toolStructuredContent(toolResult: Record<string, unknown>) {
+  const maybeState = toolResult.state;
+  if (maybeState && typeof maybeState === "object" && !Array.isArray(maybeState)) {
+    return maybeState;
+  }
+  return toolResult;
+}
 
 function setCors(res: VercelResponse): void {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -122,6 +240,9 @@ function err(id: JsonRpcId, code: number, message: string) {
 }
 
 function parseBody(req: VercelRequest): JsonRpcRequest | JsonRpcRequest[] {
+  if (req.body === undefined || req.body === null) {
+    throw new Error("Missing request body");
+  }
   if (typeof req.body === "string") {
     return JSON.parse(req.body);
   }
@@ -173,7 +294,7 @@ async function callSupabaseTool(name: string, args: Record<string, unknown>) {
   };
 }
 
-async function handleSingleRpc(rpc: JsonRpcRequest) {
+async function handleSingleRpc(rpc: JsonRpcRequest, context: RpcContext) {
   const id = rpc.id ?? null;
   const method = rpc.method;
   const params = (rpc.params ?? {}) as Record<string, unknown>;
@@ -194,6 +315,10 @@ async function handleSingleRpc(rpc: JsonRpcRequest) {
         tools: {
           listChanged: false,
         },
+        resources: {
+          subscribe: false,
+          listChanged: false,
+        },
       },
       serverInfo: SERVER_INFO,
     });
@@ -205,6 +330,40 @@ async function handleSingleRpc(rpc: JsonRpcRequest) {
 
   if (method === "tools/list") {
     return ok(id, { tools: TOOL_DEFS });
+  }
+
+  if (method === "resources/list") {
+    return ok(id, {
+      resources: [
+        {
+          uri: WIDGET_URI,
+          name: "GPT-Calories Widget",
+          description: "Interactive nutrition dashboard widget",
+          mimeType: WIDGET_MIME_TYPE,
+        },
+      ],
+    });
+  }
+
+  if (method === "resources/read") {
+    const uri = params.uri as string | undefined;
+    if (!uri) {
+      return err(id, -32602, "Missing resource uri");
+    }
+    if (uri !== WIDGET_URI) {
+      return err(id, -32602, `Unknown resource uri: ${uri}`);
+    }
+
+    return ok(id, {
+      contents: [
+        {
+          uri: WIDGET_URI,
+          mimeType: WIDGET_MIME_TYPE,
+          text: getWidgetHtml(),
+          _meta: widgetResourceMeta(context),
+        },
+      ],
+    });
   }
 
   if (method === "tools/call") {
@@ -231,7 +390,10 @@ async function handleSingleRpc(rpc: JsonRpcRequest) {
 
       return ok(id, {
         content: [{ type: "text", text: String(message) }],
-        structuredContent: toolResult,
+        structuredContent: toolStructuredContent(toolResult),
+        _meta: {
+          rawResult: toolResult,
+        },
         isError,
       });
     } catch (error) {
@@ -257,6 +419,21 @@ async function handleSingleRpc(rpc: JsonRpcRequest) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
 
+  const hostHeader = (req.headers["x-forwarded-host"] ?? req.headers.host ?? "") as
+    | string
+    | string[];
+  const protoHeader = (req.headers["x-forwarded-proto"] ?? "https") as
+    | string
+    | string[];
+  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+  const proto = Array.isArray(protoHeader) ? protoHeader[0] : protoHeader;
+  const safeHost = host.split(",")[0].trim() || "figma-calgpt-project.vercel.app";
+  const appOrigin = `${proto.split(",")[0].trim() || "https"}://${safeHost}`;
+  const context: RpcContext = {
+    appOrigin,
+    supabaseUrl: process.env.SUPABASE_URL,
+  };
+
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
@@ -265,6 +442,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       ok: true,
       endpoint: "/api/mcp",
+      widgetResourceUri: WIDGET_URI,
       message: "MCP endpoint is up. Use POST with JSON-RPC body.",
     });
   }
@@ -276,7 +454,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = parseBody(req);
     if (Array.isArray(body)) {
-      const responses = await Promise.all(body.map((rpc) => handleSingleRpc(rpc)));
+      const responses = await Promise.all(
+        body.map((rpc) => handleSingleRpc(rpc, context)),
+      );
       const filtered = responses.filter((response) => response !== null);
       if (filtered.length === 0) {
         return res.status(204).end();
@@ -284,7 +464,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(filtered);
     }
 
-    const response = await handleSingleRpc(body);
+    const response = await handleSingleRpc(body, context);
     if (response === null) {
       return res.status(204).end();
     }

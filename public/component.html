@@ -454,6 +454,14 @@
       if (!result || typeof result !== 'object') return null;
       if (result.success && result.state) return result.state;
       if (result.success && result.data) return result.data;
+      if (result.state && typeof result.state === 'object') return result.state;
+      if (
+        result.goals &&
+        typeof result.goals === 'object' &&
+        Array.isArray(result.meals)
+      ) {
+        return result;
+      }
       return null;
     }
 
@@ -465,19 +473,28 @@
       `;
     }
 
-    // Listen for state updates from ChatGPT via window.openai API
-    if (window.openai) {
-      // ChatGPT Apps SDK integration
-      window.openai.onContextUpdate((context) => {
-        console.log('Context update from ChatGPT:', context);
-        if (context.state) {
-          currentState = context.state;
-          render(currentState);
-        }
-      });
+    function renderFromToolOutput() {
+      const toolOutput = window.openai?.toolOutput;
+      const state = extractState(toolOutput);
+      if (!state) {
+        renderFallbackMessage('No state available yet. Ask ChatGPT to run "sync_state" or log a meal first.');
+        return;
+      }
+      currentState = state;
+      render(currentState);
+      window.openai?.notifyIntrinsicHeight?.();
+    }
 
-      // Request initial state
-      window.openai.requestState();
+    // Listen for state updates from ChatGPT via window.openai bridge globals
+    if (window.openai) {
+      window.addEventListener(
+        'openai:set_globals',
+        () => {
+          renderFromToolOutput();
+        },
+        { passive: true }
+      );
+      renderFromToolOutput();
     } else {
       // Fallback: Fetch from our backend directly (for testing outside ChatGPT)
       fetch('/api/state')
