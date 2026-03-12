@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.0] - 2026-03-12
+
+### Added
+- SQL-first Supabase migration for goals, preferences, meals, daily totals, weight entries, progress photos, streak events, and badge events.
+- New MCP tools: `log_weight`, `get_progress`, `update_preferences`, `upload_progress_photo`, `run_daily_checkin`, `run_weekly_review`, `suggest_goal_adjustments`.
+- OAuth metadata discovery endpoints and MCP auth challenge signaling (`mcp/www_authenticate`).
+- Strict release gate scripts and CI wiring (`npm run test:strict`).
+- Contract documentation (`MCP_CONTRACT.md`) and deployment/runbook updates.
+
+### Changed
+- Widget template URI bumped to `ui://widget/gpt-calories-v4.html`.
+- React app simplified to a widget-first dev harness (no duplicate feature UI).
+- `sync_state` now supports optional `range` and `page` while remaining no-arg compatible.
+- Supabase server layer refactored to SQL domain handlers with deterministic V3 coaching outputs.
+
+### Fixed
+- Prevented hard break risk before SQL migration by adding legacy KV fallback mode.
+- Unified web app + widget tool contract to reduce API drift regressions.
+
 ## [1.0.0] - 2026-03-12
 
 ### Added

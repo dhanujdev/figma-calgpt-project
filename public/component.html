@@ -1,538 +1,512 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GPT-Calories Health Ring</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CalGPT Widget v4</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    :root {
+      color-scheme: dark;
+      --bg: #020617;
+      --card: #111827;
+      --muted: #94a3b8;
+      --text: #e2e8f0;
+      --accent: #34d399;
+      --danger: #ef4444;
+      --ring: #1f2937;
     }
-
+    * { box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 50%, #eff6ff 100%);
-      padding: 24px;
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at 15% 20%, #1e293b 0%, var(--bg) 45%, #000 100%);
+      color: var(--text);
       min-height: 100vh;
+      padding: 16px;
     }
-
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
-    .health-ring-card {
-      background: rgba(255, 255, 255, 0.9);
-      backdrop-filter: blur(10px);
+    .shell { max-width: 820px; margin: 0 auto; display: grid; gap: 12px; }
+    .card {
+      background: color-mix(in srgb, var(--card) 88%, transparent);
+      border: 1px solid #1f2937;
       border-radius: 16px;
-      padding: 32px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-      margin-bottom: 24px;
+      padding: 16px;
     }
-
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 24px;
-    }
-
-    .header h2 {
-      font-size: 20px;
-      font-weight: 600;
-      color: #111827;
-    }
-
-    .date-badge {
-      font-size: 12px;
-      color: #6b7280;
-      background: #f3f4f6;
-      padding: 4px 12px;
-      border-radius: 12px;
-    }
-
-    .ring-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 32px;
-      padding: 24px 0;
-    }
-
-    .main-ring {
-      position: relative;
-      width: 256px;
-      height: 256px;
-    }
-
-    .main-ring svg {
-      width: 100%;
-      height: 100%;
-      transform: rotate(-90deg);
-    }
-
-    .ring-content {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .ring-value {
-      font-size: 48px;
-      font-weight: 700;
-      line-height: 1;
-    }
-
-    .ring-subtext {
-      font-size: 14px;
-      color: #6b7280;
-      margin-top: 4px;
-    }
-
-    .ring-label {
-      font-size: 11px;
-      color: #9ca3af;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-top: 4px;
-    }
-
-    .macro-rings {
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .title { font-size: 24px; font-weight: 650; margin: 0; }
+    .subtle { color: var(--muted); font-size: 13px; }
+    .tabs {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 32px;
-      width: 100%;
-      max-width: 500px;
+      gap: 8px;
+      padding: 6px;
+      border: 1px solid #1f2937;
+      border-radius: 999px;
+      background: #020617;
     }
-
-    .macro-ring {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    .tab {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 10px 12px;
+      font-weight: 600;
+      cursor: pointer;
     }
-
-    .macro-ring-svg {
-      position: relative;
-      width: 80px;
-      height: 80px;
-      margin-bottom: 8px;
-    }
-
-    .macro-ring-svg svg {
-      width: 100%;
-      height: 100%;
-      transform: rotate(-90deg);
-    }
-
-    .macro-ring-content {
+    .tab.active { background: #1f2937; color: var(--text); }
+    .ring-wrap { display: flex; justify-content: center; padding: 10px 0; }
+    .ring { position: relative; width: 220px; height: 220px; }
+    .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ring-center {
       position: absolute;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      text-align: center;
     }
-
-    .macro-value {
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    .macro-label {
-      font-size: 12px;
-      color: #6b7280;
-      margin-bottom: 2px;
-    }
-
-    .macro-goal {
-      font-size: 11px;
-      color: #9ca3af;
-    }
-
-    .meals-card {
-      background: rgba(255, 255, 255, 0.9);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    }
-
-    .meals-header {
-      font-size: 12px;
-      font-weight: 600;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 16px;
-    }
-
-    .meal-item {
-      background: white;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 12px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .meal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-
-    .meal-name {
-      font-weight: 600;
-      color: #111827;
-    }
-
-    .meal-time {
-      font-size: 11px;
-      color: #9ca3af;
-    }
-
-    .meal-macros {
+    .ring-value { font-size: 44px; font-weight: 700; line-height: 1; }
+    .mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .mini { border: 1px solid #1f2937; border-radius: 12px; padding: 8px; text-align: center; }
+    .mini strong { display: block; font-size: 18px; }
+    .list { display: grid; gap: 8px; margin-top: 12px; }
+    .item { border: 1px solid #1f2937; border-radius: 12px; padding: 10px; }
+    .item-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .badge { font-size: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 999px; padding: 4px 8px; }
+    .table { display: grid; gap: 6px; margin-top: 10px; }
+    .table-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      border: 1px solid #1f2937;
+      border-radius: 10px;
+      padding: 8px;
       font-size: 13px;
     }
-
-    .meal-macro {
-      text-align: left;
-    }
-
-    .meal-macro-label {
-      color: #6b7280;
-      font-size: 11px;
-      display: block;
-    }
-
-    .meal-macro-value {
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 10px;
       font-weight: 600;
-      color: #111827;
+      cursor: pointer;
     }
-
-    .empty-state {
-      text-align: center;
-      padding: 32px;
-      color: #9ca3af;
+    button.primary { background: var(--accent); color: #03211b; border-color: transparent; }
+    button.ghost { background: transparent; }
+    input, select {
+      width: 100%;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      background: #020617;
+      color: var(--text);
+      padding: 9px 10px;
     }
-
-    .loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 48px;
-    }
-
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid #e5e7eb;
-      border-top-color: #10b981;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .transition {
-      transition: all 0.5s ease-out;
+    .grid { display: grid; gap: 10px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .empty { color: var(--muted); text-align: center; padding: 10px; }
+    .error { border-color: #7f1d1d; background: #450a0a; color: #fecaca; }
+    @media (max-width: 640px) {
+      .grid.two { grid-template-columns: 1fr; }
+      .ring { width: 190px; height: 190px; }
+      .ring-value { font-size: 36px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div id="app">
-      <div class="loading">
-        <div class="spinner"></div>
-      </div>
+  <div class="shell">
+    <div class="row">
+      <h1 class="title">CalGPT</h1>
+      <span class="subtle" id="mode">demo</span>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Widget pages">
+      <button class="tab active" data-page="home">Home</button>
+      <button class="tab" data-page="progress">Progress</button>
+      <button class="tab" data-page="settings">Settings</button>
+    </div>
+
+    <div id="content" class="card">
+      <div class="empty">Loading...</div>
     </div>
   </div>
 
   <script>
-    // State management
-    let currentState = null;
+    const state = {
+      page: 'home',
+      model: null,
+      progress: null,
+      busy: false,
+      error: '',
+    };
 
-    // Helper function to calculate progress
-    function calculateProgress(current, goal) {
-      return Math.min((current / goal) * 100, 100);
-    }
-
-    // Helper function to calculate stroke dasharray
-    function calculateStrokeDasharray(progress, radius) {
-      const circumference = 2 * Math.PI * radius;
-      const filled = (progress / 100) * circumference;
-      return `${filled} ${circumference}`;
-    }
-
-    // Format time
-    function formatTime(timestamp) {
-      const date = new Date(timestamp);
-      return date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true 
-      });
-    }
-
-    function formatDisplayDate(dateValue) {
-      if (typeof dateValue !== 'string') return '';
-      const match = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (match) {
-        const year = Number(match[1]);
-        const month = Number(match[2]) - 1;
-        const day = Number(match[3]);
-        return new Date(year, month, day).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric'
-        });
-      }
-      const date = new Date(dateValue);
-      if (Number.isNaN(date.getTime())) return dateValue;
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
-
-    // Render the Health Ring
-    function render(state) {
-      if (!state) {
-        document.getElementById('app').innerHTML = `
-          <div class="loading">
-            <div class="spinner"></div>
-          </div>
-        `;
-        return;
-      }
-
-      const calorieProgress = calculateProgress(state.totalCalories, state.goals.calories);
-      const proteinProgress = calculateProgress(state.totalProtein, state.goals.protein);
-      const carbsProgress = calculateProgress(state.totalCarbs, state.goals.carbs);
-      const fatsProgress = calculateProgress(state.totalFats, state.goals.fats);
-
-      const mainColor = calorieProgress <= 100 ? '#10b981' : '#ef4444';
-
-      const mealsHtml = state.meals.length === 0 
-        ? '<div class="empty-state">No meals logged yet. Start by telling ChatGPT what you ate!</div>'
-        : state.meals.map(meal => `
-            <div class="meal-item">
-              <div class="meal-header">
-                <span class="meal-name">${meal.name}</span>
-                <span class="meal-time">${formatTime(meal.timestamp)}</span>
-              </div>
-              <div class="meal-macros">
-                <div class="meal-macro">
-                  <span class="meal-macro-label">Cal</span>
-                  <div class="meal-macro-value">${meal.calories}</div>
-                </div>
-                <div class="meal-macro">
-                  <span class="meal-macro-label">Protein</span>
-                  <div class="meal-macro-value" style="color: #3b82f6;">${meal.protein}g</div>
-                </div>
-                <div class="meal-macro">
-                  <span class="meal-macro-label">Carbs</span>
-                  <div class="meal-macro-value" style="color: #f97316;">${meal.carbs}g</div>
-                </div>
-                <div class="meal-macro">
-                  <span class="meal-macro-label">Fats</span>
-                  <div class="meal-macro-value" style="color: #a855f7;">${meal.fats}g</div>
-                </div>
-              </div>
-            </div>
-          `).join('');
-
-      document.getElementById('app').innerHTML = `
-        <div class="health-ring-card">
-          <div class="header">
-            <h2>Today's Progress</h2>
-            <span class="date-badge">${formatDisplayDate(state.date)}</span>
-          </div>
-
-          <div class="ring-container">
-            <div class="main-ring">
-              <svg viewBox="0 0 256 256">
-                <circle
-                  cx="128"
-                  cy="128"
-                  r="110"
-                  fill="none"
-                  stroke="#e5e7eb"
-                  stroke-width="20"
-                />
-                <circle
-                  cx="128"
-                  cy="128"
-                  r="110"
-                  fill="none"
-                  stroke="${mainColor}"
-                  stroke-width="20"
-                  stroke-dasharray="${calculateStrokeDasharray(calorieProgress, 110)}"
-                  stroke-linecap="round"
-                  class="transition"
-                />
-              </svg>
-              <div class="ring-content">
-                <div class="ring-value" style="color: ${mainColor};">${state.totalCalories}</div>
-                <div class="ring-subtext">of ${state.goals.calories}</div>
-                <div class="ring-label">calories</div>
-              </div>
-            </div>
-
-            <div class="macro-rings">
-              <div class="macro-ring">
-                <div class="macro-ring-svg">
-                  <svg viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="32" fill="none" stroke="#e5e7eb" stroke-width="6" />
-                    <circle 
-                      cx="40" 
-                      cy="40" 
-                      r="32" 
-                      fill="none" 
-                      stroke="#3b82f6" 
-                      stroke-width="6"
-                      stroke-dasharray="${calculateStrokeDasharray(proteinProgress, 32)}"
-                      stroke-linecap="round"
-                      class="transition"
-                    />
-                  </svg>
-                  <div class="macro-ring-content">
-                    <div class="macro-value" style="color: #3b82f6;">${state.totalProtein}</div>
-                  </div>
-                </div>
-                <div class="macro-label">Protein</div>
-                <div class="macro-goal">${state.goals.protein}g</div>
-              </div>
-
-              <div class="macro-ring">
-                <div class="macro-ring-svg">
-                  <svg viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="32" fill="none" stroke="#e5e7eb" stroke-width="6" />
-                    <circle 
-                      cx="40" 
-                      cy="40" 
-                      r="32" 
-                      fill="none" 
-                      stroke="#f97316" 
-                      stroke-width="6"
-                      stroke-dasharray="${calculateStrokeDasharray(carbsProgress, 32)}"
-                      stroke-linecap="round"
-                      class="transition"
-                    />
-                  </svg>
-                  <div class="macro-ring-content">
-                    <div class="macro-value" style="color: #f97316;">${state.totalCarbs}</div>
-                  </div>
-                </div>
-                <div class="macro-label">Carbs</div>
-                <div class="macro-goal">${state.goals.carbs}g</div>
-              </div>
-
-              <div class="macro-ring">
-                <div class="macro-ring-svg">
-                  <svg viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="32" fill="none" stroke="#e5e7eb" stroke-width="6" />
-                    <circle 
-                      cx="40" 
-                      cy="40" 
-                      r="32" 
-                      fill="none" 
-                      stroke="#a855f7" 
-                      stroke-width="6"
-                      stroke-dasharray="${calculateStrokeDasharray(fatsProgress, 32)}"
-                      stroke-linecap="round"
-                      class="transition"
-                    />
-                  </svg>
-                  <div class="macro-ring-content">
-                    <div class="macro-value" style="color: #a855f7;">${state.totalFats}</div>
-                  </div>
-                </div>
-                <div class="macro-label">Fats</div>
-                <div class="macro-goal">${state.goals.fats}g</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="meals-card">
-          <div class="meals-header">Today's Meals</div>
-          ${mealsHtml}
-        </div>
-      `;
-    }
-
-    function extractState(result) {
-      if (!result || typeof result !== 'object') return null;
-      if (result.success && result.state) return result.state;
-      if (result.success && result.data) return result.data;
-      if (result.state && typeof result.state === 'object') return result.state;
-      if (
-        result.goals &&
-        typeof result.goals === 'object' &&
-        Array.isArray(result.meals)
-      ) {
-        return result;
-      }
-      return null;
-    }
-
-    function renderFallbackMessage(message) {
-      document.getElementById('app').innerHTML = `
-        <div class="meals-card">
-          <div class="empty-state">${message}</div>
-        </div>
-      `;
-    }
-
-    function renderFromToolOutput() {
-      const toolOutput = window.openai?.toolOutput;
-      const state = extractState(toolOutput);
-      if (!state) {
-        renderFallbackMessage('No state available yet. Ask ChatGPT to run "sync_state" or log a meal first.');
-        return;
-      }
-      currentState = state;
-      render(currentState);
+    function notifyHeight() {
       window.openai?.notifyIntrinsicHeight?.();
     }
 
-    // Listen for state updates from ChatGPT via window.openai bridge globals
-    if (window.openai) {
-      window.addEventListener(
-        'openai:set_globals',
-        () => {
-          renderFromToolOutput();
-        },
-        { passive: true }
-      );
-      renderFromToolOutput();
-    } else {
-      // Fallback: Fetch from our backend directly (for testing outside ChatGPT)
-      fetch('/api/state')
-        .then(res => res.json())
-        .then(result => {
-          const state = extractState(result);
-          if (state) {
-            currentState = state;
-            render(currentState);
-            return;
-          }
-          renderFallbackMessage('Unable to load state from API. Try opening this component inside ChatGPT.');
-        })
-        .catch(err => {
-          console.error('Error fetching state:', err);
-          renderFallbackMessage('Unable to reach /api/state. Deploy API routes or open this component inside ChatGPT.');
-        });
+    function saveWidgetState() {
+      window.openai?.setWidgetState?.({ page: state.page });
     }
 
-    // Initial render
-    render(currentState);
+    function calculateProgress(current, goal) {
+      if (!goal || goal <= 0) return 0;
+      return Math.min((Number(current || 0) / Number(goal || 0)) * 100, 100);
+    }
+
+    function dasharray(progress, radius) {
+      const c = 2 * Math.PI * radius;
+      return `${(progress / 100) * c} ${c}`;
+    }
+
+    function fmtDate(value) {
+      if (!value) return '';
+      const date = new Date(`${value}T00:00:00Z`);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    }
+
+    function fmtTime(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+
+    async function callTool(name, args = {}) {
+      if (window.openai?.callTool) {
+        return window.openai.callTool(name, args);
+      }
+
+      const response = await fetch('/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: { name, arguments: args },
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || payload.error) {
+        throw new Error(payload?.error?.message || `Tool ${name} failed`);
+      }
+      if (payload.result?.isError) {
+        throw new Error(payload.result?.content?.[0]?.text || `Tool ${name} failed`);
+      }
+      return payload.result?.structuredContent || {};
+    }
+
+    function hydrateFromOutput() {
+      const output = window.openai?.toolOutput;
+      if (!output || typeof output !== 'object') return false;
+
+      if (output.state && output.progress) {
+        state.model = output.state;
+        state.progress = output.progress;
+      } else {
+        const hasDaily = output.goals && Array.isArray(output.meals);
+        if (hasDaily) {
+          state.model = output;
+        }
+        if (output.progress) {
+          state.progress = output.progress;
+        }
+      }
+
+      if (window.openai?.widgetState?.page) {
+        state.page = window.openai.widgetState.page;
+      }
+
+      return Boolean(state.model || state.progress);
+    }
+
+    async function sync(page = state.page) {
+      state.busy = true;
+      state.error = '';
+      render();
+      try {
+        const payload = await callTool('sync_state', { page, range: '90D' });
+        if (payload.state) {
+          state.model = payload.state;
+        } else if (payload.goals && Array.isArray(payload.meals)) {
+          state.model = payload;
+        }
+        if (payload.progress) state.progress = payload.progress;
+        state.page = page;
+        saveWidgetState();
+      } catch (error) {
+        state.error = String(error);
+      } finally {
+        state.busy = false;
+        render();
+      }
+    }
+
+    function renderHome() {
+      const model = state.model;
+      if (!model) return '<div class="empty">No daily state available.</div>';
+
+      const progress = calculateProgress(model.totalCalories, model.goals.calories);
+      const mainColor = progress <= 100 ? '#34d399' : '#ef4444';
+      const meals = Array.isArray(model.meals) ? model.meals : [];
+
+      return `
+        <div class="row"><strong>Today</strong><span class="subtle">${fmtDate(model.date)}</span></div>
+        <div class="ring-wrap">
+          <div class="ring">
+            <svg viewBox="0 0 220 220">
+              <circle cx="110" cy="110" r="95" fill="none" stroke="var(--ring)" stroke-width="14"></circle>
+              <circle cx="110" cy="110" r="95" fill="none" stroke="${mainColor}" stroke-width="14" stroke-linecap="round" stroke-dasharray="${dasharray(progress, 95)}"></circle>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-value" style="color:${mainColor}">${Math.round(model.totalCalories || 0)}</div>
+              <div class="subtle">of ${Math.round(model.goals.calories || 0)} kcal</div>
+            </div>
+          </div>
+        </div>
+        <div class="mini-grid">
+          <div class="mini"><div class="subtle">Protein</div><strong style="color:#60a5fa">${Math.round(model.totalProtein || 0)}</strong></div>
+          <div class="mini"><div class="subtle">Carbs</div><strong style="color:#fb923c">${Math.round(model.totalCarbs || 0)}</strong></div>
+          <div class="mini"><div class="subtle">Fats</div><strong style="color:#c084fc">${Math.round(model.totalFats || 0)}</strong></div>
+        </div>
+        <div class="row" style="margin-top:12px"><strong>Meals</strong><button class="ghost" data-action="sync">Refresh</button></div>
+        <div class="list">
+          ${
+            meals.length === 0
+              ? '<div class="empty">No meals yet</div>'
+              : meals
+                  .map(
+                    (meal) => `
+                      <div class="item">
+                        <div class="item-head"><strong>${meal.name}</strong><span class="subtle">${fmtTime(meal.timestamp)}</span></div>
+                        <div class="subtle">${meal.calories} kcal · P${meal.protein} C${meal.carbs} F${meal.fats}</div>
+                      </div>
+                    `,
+                  )
+                  .join('')
+          }
+        </div>
+      `;
+    }
+
+    function renderProgress() {
+      const progress = state.progress;
+      if (!progress) return '<div class="empty">No progress data yet.</div>';
+
+      return `
+        <div class="row"><strong>Progress</strong><button class="ghost" data-action="sync">Refresh</button></div>
+        <div class="grid two" style="margin-top:10px">
+          <div class="item"><div class="subtle">Current weight</div><strong>${progress.currentWeight || 0}</strong></div>
+          <div class="item"><div class="subtle">Daily average calories</div><strong>${Math.round(progress.dailyAverageCalories || 0)}</strong></div>
+          <div class="item"><div class="subtle">Streak</div><strong>${progress.streak?.current || 0} days</strong></div>
+          <div class="item"><div class="subtle">BMI</div><strong>${progress.bmi?.value || 0} (${progress.bmi?.status || 'Unknown'})</strong></div>
+        </div>
+        <div class="row" style="margin-top:12px"><strong>Badges</strong></div>
+        <div class="badges" style="margin-top:8px">
+          ${
+            (progress.badges || []).length === 0
+              ? '<span class="subtle">No badges yet</span>'
+              : progress.badges.map((badge) => `<span class="badge">${badge}</span>`).join('')
+          }
+        </div>
+        <div class="row" style="margin-top:14px"><strong>Weight changes</strong></div>
+        <div class="table">
+          ${(progress.weightChanges || [])
+            .map(
+              (row) => `<div class="table-row"><span>${row.label}</span><span>${Number(row.delta || 0).toFixed(1)}</span><span class="subtle">${row.trend}</span></div>`,
+            )
+            .join('')}
+        </div>
+        <div class="row" style="margin-top:14px"><strong>Weekly energy</strong></div>
+        <div class="subtle" style="margin-top:6px">Burned ${progress.weeklyEnergy?.burned || 0} · Consumed ${progress.weeklyEnergy?.consumed || 0} · Energy ${progress.weeklyEnergy?.energy || 0}</div>
+      `;
+    }
+
+    function renderSettings() {
+      const model = state.model;
+      if (!model) return '<div class="empty">No settings state yet.</div>';
+
+      const goals = model.goals || {};
+      const prefs = model.preferences || {};
+
+      return `
+        <div class="row"><strong>Settings</strong></div>
+        <div class="grid two" style="margin-top:10px">
+          <div>
+            <label class="subtle">Calories goal</label>
+            <input id="goal_calories" type="number" value="${goals.calories || 2000}" />
+          </div>
+          <div>
+            <label class="subtle">Protein goal</label>
+            <input id="goal_protein" type="number" value="${goals.protein || 150}" />
+          </div>
+          <div>
+            <label class="subtle">Carbs goal</label>
+            <input id="goal_carbs" type="number" value="${goals.carbs || 200}" />
+          </div>
+          <div>
+            <label class="subtle">Fats goal</label>
+            <input id="goal_fats" type="number" value="${goals.fats || 65}" />
+          </div>
+        </div>
+        <div class="actions" style="margin-top:10px">
+          <button class="primary" data-action="save-goals">Save goals</button>
+          <button data-action="suggest-goals">Suggest goals</button>
+        </div>
+        <div class="grid two" style="margin-top:14px">
+          <div>
+            <label class="subtle">Weight unit</label>
+            <select id="pref_weight_unit">
+              <option value="kg" ${prefs.unitWeight === 'kg' ? 'selected' : ''}>kg</option>
+              <option value="lb" ${prefs.unitWeight === 'lb' ? 'selected' : ''}>lb</option>
+            </select>
+          </div>
+          <div>
+            <label class="subtle">Language</label>
+            <input id="pref_language" type="text" value="${prefs.language || 'en'}" />
+          </div>
+          <div>
+            <label class="subtle">Reminder time</label>
+            <input id="pref_reminder" type="time" value="${prefs.reminderTime || '20:00'}" />
+          </div>
+          <div>
+            <label class="subtle">Height (cm)</label>
+            <input id="pref_height" type="number" value="${Math.round(prefs.heightCm || 170)}" />
+          </div>
+        </div>
+        <div class="actions" style="margin-top:10px">
+          <button class="primary" data-action="save-prefs">Save preferences</button>
+          <button data-action="daily-checkin">Daily check-in</button>
+        </div>
+      `;
+    }
+
+    function render() {
+      document.getElementById('mode').textContent = state.model?.mode || 'demo';
+      const content = document.getElementById('content');
+
+      if (state.error) {
+        content.className = 'card error';
+        content.innerHTML = `<strong>Error</strong><div>${state.error}</div>`;
+        notifyHeight();
+        return;
+      }
+
+      content.className = 'card';
+      if (state.busy) {
+        content.innerHTML = '<div class="empty">Loading...</div>';
+        notifyHeight();
+        return;
+      }
+
+      if (state.page === 'home') content.innerHTML = renderHome();
+      if (state.page === 'progress') content.innerHTML = renderProgress();
+      if (state.page === 'settings') content.innerHTML = renderSettings();
+
+      document.querySelectorAll('.tab').forEach((tab) => {
+        tab.classList.toggle('active', tab.getAttribute('data-page') === state.page);
+      });
+
+      notifyHeight();
+    }
+
+    document.addEventListener('click', async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      const page = target.getAttribute('data-page');
+      if (page) {
+        state.page = page;
+        saveWidgetState();
+        render();
+        return;
+      }
+
+      const action = target.getAttribute('data-action');
+      if (!action) return;
+
+      try {
+        state.busy = true;
+        state.error = '';
+        render();
+
+        if (action === 'sync') {
+          await sync(state.page);
+          return;
+        }
+
+        if (action === 'save-goals') {
+          const payload = {
+            calories: Number(document.getElementById('goal_calories').value || 2000),
+            protein: Number(document.getElementById('goal_protein').value || 150),
+            carbs: Number(document.getElementById('goal_carbs').value || 200),
+            fats: Number(document.getElementById('goal_fats').value || 65),
+          };
+          await callTool('update_goals', payload);
+          await sync('settings');
+          return;
+        }
+
+        if (action === 'save-prefs') {
+          const payload = {
+            unit_weight: document.getElementById('pref_weight_unit').value,
+            language: document.getElementById('pref_language').value,
+            reminder_time: document.getElementById('pref_reminder').value,
+            height_cm: Number(document.getElementById('pref_height').value || 170),
+          };
+          await callTool('update_preferences', payload);
+          await sync('settings');
+          return;
+        }
+
+        if (action === 'suggest-goals') {
+          const payload = await callTool('suggest_goal_adjustments', {});
+          const suggested = payload?.suggestion?.proposedGoals;
+          if (suggested) {
+            document.getElementById('goal_calories').value = String(suggested.calories || 2000);
+            document.getElementById('goal_protein').value = String(suggested.protein || 150);
+            document.getElementById('goal_carbs').value = String(suggested.carbs || 200);
+            document.getElementById('goal_fats').value = String(suggested.fats || 65);
+          }
+          state.busy = false;
+          render();
+          return;
+        }
+
+        if (action === 'daily-checkin') {
+          const payload = await callTool('run_daily_checkin', {});
+          const notes = payload?.checkin?.recommendations || [];
+          alert(notes.join('\n\n') || 'No recommendations returned.');
+          state.busy = false;
+          render();
+          return;
+        }
+      } catch (error) {
+        state.error = String(error);
+      } finally {
+        state.busy = false;
+        render();
+      }
+    });
+
+    window.addEventListener('openai:set_globals', () => {
+      hydrateFromOutput();
+      render();
+    }, { passive: true });
+
+    async function boot() {
+      if (!hydrateFromOutput()) {
+        await sync(state.page);
+      } else {
+        render();
+      }
+    }
+
+    boot();
   </script>
 </body>
 </html>

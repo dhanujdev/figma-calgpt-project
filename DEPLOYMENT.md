@@ -1,196 +1,57 @@
-# 🚀 GPT-Calories Deployment Guide
+# Deployment Guide (V2/V3)
 
-## V1 Production Baseline
+## 1) Run SQL Migration
 
-- Locked release: `v1.0.0`
-- Production MCP URL: `https://figma-calgpt-project.vercel.app/mcp`
-- Widget template URI: `ui://widget/gpt-calories-v3.html`
-- Release checklist and reproducibility: [`RELEASE_LOCK.md`](./RELEASE_LOCK.md)
-- Change history: [`CHANGELOG.md`](./CHANGELOG.md)
+Execute in Supabase SQL editor:
 
-## Quick Deploy to Production
+- `supabase/migrations/20260312_v2_v3_schema.sql`
 
-### Step 1: Deploy to Vercel
+## 2) Set Environment Variables
 
-1. **Push code to GitHub:**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit: GPT-Calories ChatGPT App"
-   git remote add origin YOUR_GITHUB_REPO_URL
-   git push -u origin main
-   ```
+### Required
 
-2. **Connect to Vercel:**
-   - Go to [vercel.com](https://vercel.com)
-   - Click "New Project"
-   - Import your GitHub repository
-   - Vercel will auto-detect the configuration from `vercel.json`
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-3. **Set Environment Variables in Vercel:**
-   - In your Vercel project settings, go to "Environment Variables"
-   - Add these variables:
-     - `SUPABASE_URL`
-     - `SUPABASE_ANON_KEY`
+### Optional
 
-4. **Deploy:**
-   - Click "Deploy"
-   - Wait for build to complete
-   - Copy your production URL (e.g., `https://your-app.vercel.app`)
+- `ALLOW_DEMO_MODE` (`true` default)
+- `OAUTH_AUTHORIZATION_SERVER`
+- `OAUTH_AUTHORIZATION_ENDPOINT`
+- `OAUTH_TOKEN_ENDPOINT`
+- `OAUTH_REGISTRATION_ENDPOINT`
 
-### Step 2: Update Manifest URLs
+## 3) Run Strict Gate Locally
 
-After deployment, update `/public/manifest.json`:
-
-```json
-{
-  "icon": "https://your-app.vercel.app/icon.svg",
-  "api": {
-    "type": "mcp",
-    "url": "https://your-app.vercel.app/mcp"
-  },
-  "ui_component": {
-    "url": "https://your-app.vercel.app/component.html",
-    "display_mode": "inline"
-  }
-}
-```
-
-### Step 3: Register in ChatGPT
-
-1. **Go to ChatGPT:**
-   - Navigate to ChatGPT Settings
-   - Go to "Apps" section
-   - Click "Create App"
-
-2. **Provide Manifest URL:**
-   - Enter: `https://your-app.vercel.app/manifest.json`
-   - ChatGPT will validate and load your app
-
-3. **Test:**
-   - Start a new chat
-   - Say: "I ate a chicken sandwich with 700 calories, 35g protein, 50g carbs, 30g fats"
-   - The Health Ring should appear inline!
-
-> If ChatGPT still shows stale widget metadata after deploy, click **Refresh** in the app settings. If needed, disconnect and reconnect the app to force metadata reload.
-
-## Architecture Overview
-
-### The Flow
-
-```
-User in ChatGPT
-    ↓
-"I ate a burger"
-    ↓
-ChatGPT (GPT-4) → Understands intent
-    ↓
-Calls MCP Tool: log_meal
-    ↓
-Vercel /mcp endpoint
-    ↓
-Supabase Edge Function
-    ↓
-Stores in KV Store
-    ↓
-Returns updated state to ChatGPT
-    ↓
-ChatGPT injects component.html
-    ↓
-window.openai API updates the UI
-    ↓
-Health Ring updates in real-time! 🎉
-```
-
-### File Structure
-
-```
-/public
-  ├── manifest.json        # ChatGPT App manifest
-  ├── component.html       # Web component (Health Ring UI)
-  └── icon.svg            # App icon
-
-/api
-  ├── mcp.ts              # MCP endpoint proxy for ChatGPT
-  └── state.ts            # State endpoint for component fallback
-
-/supabase/functions/server
-  ├── index.tsx           # Hono server (internal backend)
-  ├── mcp_handler.tsx     # MCP tool implementations
-  └── kv_store.tsx        # Supabase KV storage wrapper
-
-/src/app
-  ├── App.tsx             # Standalone demo (for testing)
-  ├── components/
-      ├── HealthRing.tsx  # React version of Health Ring
-      └── MealLog.tsx     # Meal list component
-```
-
-## Environment Variables
-
-Required in Vercel:
-
-- `SUPABASE_URL` - Your Supabase project URL
-- `SUPABASE_ANON_KEY` - Public anonymous key
-
-Only required in Supabase Edge Function runtime (not Vercel):
-- `SUPABASE_SERVICE_ROLE_KEY` - Server-side admin key
-
-## Testing
-
-### Test Locally (Standalone React App)
 ```bash
-npm run dev
+npm ci
+npm run test:strict
 ```
-Visit `http://localhost:5173` to test the Health Ring independently.
 
-### Test the Web Component
-Open `/public/component.html` in your browser to test the ChatGPT UI component.
+Optional live smoke test:
 
-### Test MCP Endpoints
 ```bash
-# Verify MCP initialize
-curl -X POST https://YOUR_APP.vercel.app/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
-
-# List tools
-curl -X POST https://YOUR_APP.vercel.app/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
-
-# Get state via proxy
-curl https://YOUR_APP.vercel.app/api/state
+MCP_BASE_URL=https://figma-calgpt-project.vercel.app/mcp npm run smoke:mcp
 ```
 
-## Troubleshooting
+## 4) Deploy to Vercel
 
-### Health Ring not appearing in ChatGPT
-- Check that `component.html` is accessible at your Vercel URL
-- Verify CORS headers are set in `vercel.json`
-- Check browser console for errors
+```bash
+vercel --prod
+```
 
-### MCP tools not being called
-- Verify the manifest.json `api.url` points to your Vercel `/mcp` endpoint
-- Check Supabase function logs for errors
-- Ensure environment variables are set
+## 5) Post-Deploy Checks
 
-### Data not persisting
-- Check Supabase connection
-- Verify KV store is working: `await kv.get('test')`
-- Check server logs for storage errors
+1. `tools/list` includes all V1 + V2 + V3 tools.
+2. `resources/list` returns `ui://widget/gpt-calories-v4.html`.
+3. `resources/read` returns `text/html;profile=mcp-app`.
+4. `tools/call sync_state` returns state + progress.
+5. `/.well-known/oauth-protected-resource` is reachable.
 
-## Next Steps
+## 6) Rollback Strategy
 
-- **Add AI Parsing:** Integrate OpenAI API to parse natural language meal descriptions
-- **Add Photos:** Use GPT-4 Vision to analyze food photos and estimate calories
-- **Historical Data:** Show weekly/monthly trends
-- **Sync with Apple Health:** Import data from health tracking apps
-- **Social Features:** Share progress with friends
-
-## Resources
-
-- [OpenAI ChatGPT Apps SDK](https://platform.openai.com/docs/chatgpt-apps)
-- [MCP Protocol Specification](https://modelcontextprotocol.io)
-- [Supabase Edge Functions](https://supabase.com/docs/guides/functions)
-- [Vercel Deployment](https://vercel.com/docs)
+1. Roll back to previous deployment in Vercel.
+2. Keep SQL migration applied; schema is backward tolerant.
+3. If auth causes incidents, temporarily set `ALLOW_DEMO_MODE=true`.
+4. Re-run post-deploy checks after rollback.
