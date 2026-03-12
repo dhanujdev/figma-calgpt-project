@@ -1,57 +1,101 @@
-# Deployment Guide (V2/V3)
+# Deployment Guide
 
-## 1) Run SQL Migration
+## 0) Pre-Deploy Assumptions
 
-Execute in Supabase SQL editor:
+- `main` branch is the deploy source of truth.
+- Supabase project ref: `yaaslbgenkrimghcpeay`.
+- Canonical connector endpoint: `https://figma-calgpt-project.vercel.app/mcp`.
 
-- `supabase/migrations/20260312_v2_v3_schema.sql`
+## 1) Configure Environment
 
-## 2) Set Environment Variables
+### Vercel env vars
 
-### Required
+Required:
 
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_URL=https://yaaslbgenkrimghcpeay.supabase.co`
+- `SUPABASE_ANON_KEY=<anon key>`
+- `SUPABASE_MCP_ENDPOINT=https://yaaslbgenkrimghcpeay.supabase.co/functions/v1/server/mcp`
 
-### Optional
+Optional OAuth overrides:
 
-- `ALLOW_DEMO_MODE` (`true` default)
 - `OAUTH_AUTHORIZATION_SERVER`
 - `OAUTH_AUTHORIZATION_ENDPOINT`
 - `OAUTH_TOKEN_ENDPOINT`
 - `OAUTH_REGISTRATION_ENDPOINT`
 
-## 3) Run Strict Gate Locally
+### Supabase function secrets
+
+Required:
+
+- `SUPABASE_URL=https://yaaslbgenkrimghcpeay.supabase.co`
+- `SUPABASE_SERVICE_ROLE_KEY=<service role key>`
+- `ALLOW_DEMO_MODE=false`
+
+## 2) Align Migration History Before SQL Push
+
+If `supabase db push` or `supabase db pull` fails due local/remote history mismatch:
+
+1. Preserve local-only migration files outside `supabase/migrations`.
+2. Run `supabase migration fetch --project-ref yaaslbgenkrimghcpeay`.
+3. Reconcile local vs fetched SQL via diff.
+4. Add a new reconcile migration if needed.
+5. Avoid `migration repair --status reverted` unless you intentionally rolled schema back.
+
+## 3) Apply SQL Changes
 
 ```bash
-npm ci
-npm run test:strict
+supabase db push --project-ref yaaslbgenkrimghcpeay
 ```
 
-Optional live smoke test:
+## 4) Deploy Supabase Edge Function
 
 ```bash
-MCP_BASE_URL=https://figma-calgpt-project.vercel.app/mcp npm run smoke:mcp
+supabase functions deploy server --project-ref yaaslbgenkrimghcpeay
 ```
 
-## 4) Deploy to Vercel
+## 5) Deploy Vercel
+
+Deploy from latest `main` commit in Vercel project.
+
+## 6) Verify End-to-End
+
+### Supabase function probe
 
 ```bash
-vercel --prod
+curl -i 'https://yaaslbgenkrimghcpeay.supabase.co/functions/v1/server/mcp' \
+  -H "Authorization: Bearer <SUPABASE_ANON_KEY>" \
+  -H "apikey: <SUPABASE_ANON_KEY>" \
+  -H 'content-type: application/json' \
+  --data '{"method":"sync_state","params":{}}'
 ```
 
-## 5) Post-Deploy Checks
+Must return `200`.
 
-1. `tools/list` includes all V1 + V2 + V3 tools.
-2. `resources/list` returns `ui://widget/gpt-calories-v4.html`.
-3. `resources/read` returns `text/html;profile=mcp-app`.
-4. `tools/call sync_state` returns state + progress.
-5. `/.well-known/oauth-protected-resource` is reachable.
+### MCP probe via Vercel
 
-## 6) Rollback Strategy
+```bash
+curl -sS https://figma-calgpt-project.vercel.app/mcp \
+  -H 'content-type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 
-1. Roll back to previous deployment in Vercel.
-2. Keep SQL migration applied; schema is backward tolerant.
-3. If auth causes incidents, temporarily set `ALLOW_DEMO_MODE=true`.
-4. Re-run post-deploy checks after rollback.
+curl -sS https://figma-calgpt-project.vercel.app/mcp \
+  -H 'content-type: application/json' \
+  --data '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"sync_state","arguments":{}}}'
+
+curl -sS https://figma-calgpt-project.vercel.app/mcp \
+  -H 'content-type: application/json' \
+  --data '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_progress","arguments":{"range":"90D"}}}'
+```
+
+## 7) ChatGPT Connector Finalization
+
+- Connector endpoint should be exact: `https://figma-calgpt-project.vercel.app/mcp`
+- Reconnect app once after deployment.
+- Validate widget loads and tool call actions work from ChatGPT chat.
+
+## 8) Fast Rollback
+
+1. Revert Vercel to last known good deployment.
+2. Keep DB schema unless migration itself is faulty.
+3. Restore previous `SUPABASE_MCP_ENDPOINT` if endpoint mismatch is the failure.
+4. Re-run verification probes.

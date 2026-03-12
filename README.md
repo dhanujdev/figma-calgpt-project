@@ -1,103 +1,88 @@
-# GPT-Calories - ChatGPT App (V2/V3)
+# CalGPT
 
-A ChatGPT-native nutrition tracker with:
+CalGPT is a ChatGPT App with an MCP backend for calorie tracking, progress analytics, and goal management.
 
-- V1 compatibility (`log_meal`, `sync_state`, `delete_meal`, `update_goals`)
-- V2 backend tooling (`log_weight`, `get_progress`, `update_preferences`, `upload_progress_photo`)
-- V3 deterministic coaching orchestration (`run_daily_checkin`, `run_weekly_review`, `suggest_goal_adjustments`)
+## Canonical Production Endpoints
 
-## Production URLs
+- ChatGPT connector MCP endpoint: `https://figma-calgpt-project.vercel.app/mcp`
+- Direct MCP endpoint (diagnostics): `https://figma-calgpt-project.vercel.app/api/mcp`
+- OAuth protected-resource metadata: `https://figma-calgpt-project.vercel.app/.well-known/oauth-protected-resource`
+- OAuth authorization-server metadata: `https://figma-calgpt-project.vercel.app/.well-known/oauth-authorization-server`
+- Widget resource URI: `ui://widget/gpt-calories-v4.html`
 
-- MCP endpoint: `https://figma-calgpt-project.vercel.app/mcp`
-- OAuth protected resource metadata: `https://figma-calgpt-project.vercel.app/.well-known/oauth-protected-resource`
-- OAuth authorization server metadata: `https://figma-calgpt-project.vercel.app/.well-known/oauth-authorization-server`
-- Widget template URI: `ui://widget/gpt-calories-v4.html`
+## Architecture At A Glance
 
-## Architecture
+- `api/mcp.ts`
+  - JSON-RPC MCP surface for ChatGPT.
+  - Publishes tools/resources contract.
+  - Proxies tool calls to Supabase Edge Function.
+- `supabase/functions/server/`
+  - Tool handlers and orchestration logic.
+  - Reads/writes Supabase Postgres.
+- `public/component.html`
+  - Vanilla widget UI rendered by ChatGPT via MCP resource.
+- `api/oauth-*.ts`
+  - OAuth metadata endpoints used by MCP auth flows.
 
-- `api/mcp.ts`: ChatGPT-facing MCP endpoint and tool/resource contract.
-- `supabase/functions/server/`: Tool handlers and domain logic (SQL-first with legacy KV fallback).
-- `public/component.html`: ChatGPT widget v4 (`window.openai.toolOutput` + `window.openai.callTool`).
-- `src/app/App.tsx`: Lightweight local dev harness that previews the vanilla widget and state snapshot.
+See full details in [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
-## Required Environment Variables
+## Required Runtime Configuration
 
-Set in Vercel and Supabase function runtime:
+### Vercel (required)
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_MCP_ENDPOINT`
+  - Recommended value: `https://yaaslbgenkrimghcpeay.supabase.co/functions/v1/server/mcp`
 
-Optional OAuth metadata overrides:
+### Supabase Edge Function secrets (required)
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `ALLOW_DEMO_MODE=false` for production
+
+### Optional OAuth override env vars (Vercel)
 
 - `OAUTH_AUTHORIZATION_SERVER`
 - `OAUTH_AUTHORIZATION_ENDPOINT`
 - `OAUTH_TOKEN_ENDPOINT`
 - `OAUTH_REGISTRATION_ENDPOINT`
 
-Optional rollout guard:
+Important: do not put `SUPABASE_SERVICE_ROLE_KEY` in Vercel for this architecture.
 
-- `ALLOW_DEMO_MODE` (`true` by default; set to `false` to require auth)
+## Tool Surface
 
-## Database Migration
+### V1
 
-Run SQL migration before V2/V3 rollout:
+- `log_meal`
+- `sync_state`
+- `delete_meal`
+- `update_goals`
 
-- [`supabase/migrations/20260312_v2_v3_schema.sql`](./supabase/migrations/20260312_v2_v3_schema.sql)
+### V2
 
-It creates:
+- `log_weight`
+- `get_progress`
+- `update_preferences`
+- `upload_progress_photo`
 
-- `nutrition_goals`
-- `user_preferences`
-- `meals`
-- `daily_totals`
-- `weight_entries`
-- `progress_photos`
-- `streak_events`
-- `badge_events`
+### V3
 
-## Strict Release Gate
+- `run_daily_checkin`
+- `run_weekly_review`
+- `suggest_goal_adjustments`
 
-Run before deploy:
-
-```bash
-npm run test:strict
-```
-
-This validates:
-
-- MCP contract coverage and widget v4 URI
-- Widget bridge hooks (`toolOutput`, `callTool`, `setWidgetState`)
-- SQL migration table/RLS coverage
-- Widget-first dev harness wiring
-- Build
-- Optional live MCP smoke tests (`MCP_BASE_URL`)
-
-## Local Development
+## Setup
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+See deployment and operations docs before shipping:
 
-## Tool List
-
-- `log_meal`
-- `sync_state`
-- `delete_meal`
-- `update_goals`
-- `log_weight`
-- `get_progress`
-- `update_preferences`
-- `upload_progress_photo`
-- `run_daily_checkin`
-- `run_weekly_review`
-- `suggest_goal_adjustments`
-
-## Notes on Auth + Safety
-
-- Mixed auth metadata is exposed in MCP tool descriptors.
-- For protected tool flows, MCP returns auth challenge metadata (`mcp/www_authenticate`) when needed.
-- Legacy KV fallback is kept to avoid hard breakage before SQL migration is applied.
+- [`DEPLOYMENT.md`](./DEPLOYMENT.md)
+- [`TESTING_GUIDE.md`](./TESTING_GUIDE.md)
+- [`MCP_CONTRACT.md`](./MCP_CONTRACT.md)
+- [`RELEASE_LOCK.md`](./RELEASE_LOCK.md)
+- [`INCIDENT_PREVENTION.md`](./INCIDENT_PREVENTION.md)

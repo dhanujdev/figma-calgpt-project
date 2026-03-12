@@ -1,19 +1,19 @@
-# Testing Guide (V2/V3)
+# Testing Guide
 
-## Strict Gate (Required)
+## Required Local Gate
 
 ```bash
 npm run test:strict
 ```
 
-This runs:
+Current strict gate components:
 
 1. `check:mcp-contract`
 2. `check:widget-contract`
 3. `check:sql-migration`
 4. `check:ui-shell`
 5. `build`
-6. `smoke:mcp` (skips unless `MCP_BASE_URL` is set)
+6. `smoke:mcp` (runs when `MCP_BASE_URL` is set)
 
 ## Live MCP Smoke
 
@@ -21,22 +21,41 @@ This runs:
 MCP_BASE_URL=https://figma-calgpt-project.vercel.app/mcp npm run smoke:mcp
 ```
 
-Expected:
+Use `/api/mcp` as diagnostic fallback during connector issues:
 
-- `tools/list` includes all V1 + V2 + V3 tools.
-- `resources/list` includes `ui://widget/gpt-calories-v4.html`.
-- `resources/read` returns widget HTML with MCP app MIME.
-- `tools/call sync_state` returns structured state payload.
+```bash
+MCP_BASE_URL=https://figma-calgpt-project.vercel.app/api/mcp npm run smoke:mcp
+```
 
-## Manual UI Checks
+## Production Verification Matrix
 
-1. `/component.html` renders with Home/Progress/Settings tabs and refresh actions.
-2. Widget settings actions (`update_goals`, `update_preferences`) complete without UI errors.
-3. Widget orchestration actions (`run_daily_checkin`, `suggest_goal_adjustments`) return visible results.
-4. React dev harness loads `/api/state` and iframe preview without runtime errors.
+### MCP base health
 
-## Auth Checks
+- `POST /mcp initialize` -> `200`
+- `POST /mcp tools/list` -> includes V1/V2/V3 tools
+- `POST /mcp tools/call sync_state` -> success payload
+- `POST /mcp tools/call get_progress` -> success payload
 
-1. No token + `ALLOW_DEMO_MODE=true`: app runs in demo mode.
-2. Valid token: app reports authenticated mode and isolates user data.
-3. Invalid token + `ALLOW_DEMO_MODE=false`: protected tools return auth-required error path.
+### OAuth metadata
+
+- `GET /.well-known/oauth-protected-resource` -> `200`
+- `GET /.well-known/oauth-authorization-server` -> `200`
+
+### Supabase function health
+
+`SUPABASE_MCP_ENDPOINT` must return `200` with anon key and `sync_state` method payload.
+
+## ChatGPT Acceptance Checks
+
+1. Open GPT-Calories app from ChatGPT.
+2. Log a meal via conversation.
+3. Confirm widget updates totals and meal list.
+4. Trigger progress and settings actions.
+5. Confirm no `404 Not Found [endpoint=...]` error in tool response.
+
+## Failure Triage Priority
+
+1. Verify `SUPABASE_MCP_ENDPOINT` first.
+2. Verify Supabase function route response with anon key.
+3. Verify migration history consistency.
+4. Verify ChatGPT connector endpoint is exact `/mcp`.
